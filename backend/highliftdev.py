@@ -61,7 +61,7 @@ def _division_line(sides, divx):
 # HIGH LIFT DEVICES
 
 # LEADING EDGE GOEMETRIES
-def bare_le(sides, divx):
+def bare_le(sides, divx) -> list:
     """
     Leave the leading edge as it is.
 
@@ -77,7 +77,7 @@ def bare_le(sides, divx):
     return [[curve]]
 
 
-def le_flap1(sides, divx, css, csp, dtheta):
+def le_flap1(sides, divx, css, csp, dtheta) -> list:
     """
     Generate a leading edge flap, hinging on the pressure side.
 
@@ -110,7 +110,7 @@ def le_flap1(sides, divx, css, csp, dtheta):
     return [[curve1, pre_curve]]
     
 
-def le_flap2(sides, divx, css, csp, dtheta):
+def le_flap2(sides, divx, css, csp, dtheta) -> list:
     """
     Generate a leading edge flap, hinging on the suction side.
 
@@ -151,7 +151,7 @@ def le_flap2(sides, divx, css, csp, dtheta):
     return [[curve1, pre_curve]]
 
 
-def le_flap3(sides, divx, css, csp, dtheta):
+def le_flap3(sides, divx, css, csp, dtheta) -> list:
     """
     Generate a leading edge flap, with smooth curved, variable camber geometry.
 
@@ -198,7 +198,7 @@ def kruger():
     """
 
 
-def le_slot(sides, divx, css, csp, cgenfunc, cgenarg, r):
+def le_slot(sides, divx, css, csp, cgenfunc, cgenarg, r) -> list:
     """
     Cut the leading edge short, so the resulting geometry can be used in combination with a slat.
 
@@ -248,7 +248,7 @@ def le_slot(sides, divx, css, csp, cgenfunc, cgenarg, r):
 
 
 # TRAILING EDGE GOEMETRIES
-def bare_te(sides, divx):
+def bare_te(sides, divx) -> list:
     """
     Leave the trailing edge as it is.
 
@@ -264,7 +264,7 @@ def bare_te(sides, divx):
     return [[pre_curve, suc_curve]]
 
 
-def te_flap(sides, divx, cf, dtheta):
+def te_flap(sides, divx, cf, dtheta) -> list:
     """
     Generate a trailing edge flap
 
@@ -302,7 +302,7 @@ def te_flap(sides, divx, cf, dtheta):
     return [[pre_curve, pflap_curve, suc_curve]]
 
 
-def split_flap(sides, divx, cf, dtheta, ft):
+def split_flap(sides, divx, cf, dtheta, ft) -> list:
     """
     Generate a trailing edge split flap.
 
@@ -337,7 +337,7 @@ def split_flap(sides, divx, cf, dtheta, ft):
     return [[pre_curve, pflap_curve, sflap_curve, med_curve, suc_curve]]
 
 
-def zap_flap(sides, divx, cf, dtheta, ft, dx, gap, r):
+def zap_flap(sides, divx, cf, dtheta, ft, dx, gap, r) -> list:
     """
     Generate a trailing edge slotted zap flap.
 
@@ -397,7 +397,7 @@ def zap_flap(sides, divx, cf, dtheta, ft, dx, gap, r):
             return [[pre_curve, pte_curve, suc_curve], [gmt.fillet_aprox(sflap_curve, pflap_curve, r, 4, [0, 0])[1]]]
 
 
-def te_slot(sides, divx, cfs, cfp, cgenfunc, cgenarg, r):
+def te_slot(sides, divx, cfs, cfp, cgenfunc, cgenarg, r) -> list:
     """
     Cut the trailing edge short, so the resulting geometry can be used in combination with a flap.
 
@@ -449,7 +449,7 @@ def te_slot(sides, divx, cfs, cfp, cgenfunc, cgenarg, r):
 
 
 # ELEMENT GENERATION
-def slat(sides, css, csp, cgenfunc, cgenarg, r, mirror = False):
+def slat(sides, css, csp, cgenfunc, cgenarg, r, mirror = False) -> list:
     """
     Generate a slat so the resulting geometry can be used in combination with a leading edge slot.
 
@@ -499,10 +499,12 @@ def slat(sides, css, csp, cgenfunc, cgenarg, r, mirror = False):
     if r>0:
         return [[gmt.fillet_aprox(suc_curve, pre_curve, r, [1, 1], [-1])[1]]]
     elif r==0:
-        return [[suc_curve, np.flipud(pre_curve)]]
+        if gmt.comcheck(pre_curve[-1], suc_curve[-1], 0.01):
+            pre_curve = np.flipud(pre_curve)
+        return [[suc_curve, pre_curve]]
 
 
-def flap(sides, cfs, cfp, cgenfunc, cgenarg, r):
+def flap(sides, cfs, cfp, cgenfunc, cgenarg, r) -> list:
     """
     Generate a flap, so the resulting geometry can be used in combination with a trailing edge slot.
 

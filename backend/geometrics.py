@@ -19,7 +19,7 @@ _opdict = {'<': lambda x,y: x<y, '>': lambda x,y: x>y, '<=': lambda x,y: x<=y, '
 
 
 # FUNCTION SOLVING
-def bisect_solver(funct, y, seg, tol):
+def bisect_solver(funct, y, seg, tol) -> float:
     """
     Solve a function with the bisection method.
 
@@ -52,7 +52,7 @@ def bisect_solver(funct, y, seg, tol):
 
 
 # BASIC MANIPULATION
-def translate(p, tv):
+def translate(p, tv) -> np.ndarray:
     """
     Translate points by vector tv.
 
@@ -72,7 +72,7 @@ def translate(p, tv):
         return p + np.repeat([tv], np.shape(p)[0], axis=0)
 
 
-def rotate(p, center, theta):
+def rotate(p, center, theta) -> np.ndarray:
     """
     Rotate points p around center by theta.
 
@@ -93,7 +93,7 @@ def rotate(p, center, theta):
     return translate(p, center)
 
 
-def scale(p, center, fv):
+def scale(p, center, fv) -> np.ndarray:
     """
     Scale points p around center accodring to vector fv.
 
@@ -114,7 +114,7 @@ def scale(p, center, fv):
     return translate(p, center)
 
 
-def mirror(p, ax):
+def mirror(p, ax) -> np.ndarray:
     """
     Mirror points p around axis ax.
 
@@ -137,7 +137,7 @@ def mirror(p, ax):
     return p
 
 
-def comcheck(p1, p2, tol):
+def comcheck(p1, p2, tol) -> bool:
     """
     Check if two points have common coordinates, with tolerance.
 
@@ -154,7 +154,7 @@ def comcheck(p1, p2, tol):
 
 
 # SPLINE
-def spline_param_find(spline, val, axis, tol = 10**-3, delta = 10**-3):
+def spline_param_find(spline, val, axis, tol = 10**-3, delta = 10**-3) -> list:
     """
     Return the parametre of a spline, at certain coordinates, using bisection method.
 
@@ -194,7 +194,7 @@ def spline_param_find(spline, val, axis, tol = 10**-3, delta = 10**-3):
     return params
 
 
-def cbs_interp(c, val, axis, spfargs = [], centripetal = True):
+def cbs_interp(c, val, axis, spfargs = [], centripetal = True) -> np.ndarray:
     """
     Use centripetaly fitted cubic bspline to interpolate points at certain values.
 
@@ -215,7 +215,7 @@ def cbs_interp(c, val, axis, spfargs = [], centripetal = True):
 
 
 # ANGLES
-def vectorangle(v1, v2 = [1,0], reflex = False):
+def vectorangle(v1, v2 = [1,0], reflex = False) -> float:
     """
     Calculate the angle of a vector and x axis, or between two vectors, from vector 2 to vector 1.
 
@@ -243,7 +243,7 @@ def vectorangle(v1, v2 = [1,0], reflex = False):
     return theta
 
 
-def quadrant(v1, v2 = np.zeros(2), reflex = False):
+def quadrant(v1, v2 = np.zeros(2), reflex = False) -> int:
     """
     Find the quadrant at which a vector, or the bisector of two vectors, point at.
 
@@ -276,7 +276,7 @@ def quadrant(v1, v2 = np.zeros(2), reflex = False):
         return 4
 
 
-def bisector_lnr(lf1, lf2):
+def bisector_lnr(lf1, lf2) -> list:
     """
     Find the line bisectors of two lines.
 
@@ -301,7 +301,7 @@ def bisector_lnr(lf1, lf2):
     return [lfb1, lfb2]
 
 
-def vertical_lnr(lf, p):
+def vertical_lnr(lf, p) -> list:
     """
     Find the line vertical to the first, passing through point.
 
@@ -316,10 +316,10 @@ def vertical_lnr(lf, p):
     lfv = np.zeros(2)
     lfv[0] = -1/lf[0]
     lfv[1] = p[1] - lfv[0]*p[0]
-    return lfv
+    return list(lfv)
 
 
-def bisector_vct(v1, v2):
+def bisector_vct(v1, v2) -> np.ndarray:
     """
     Find the unit vector that bisects two vectors.
 
@@ -348,7 +348,7 @@ def bisector_vct(v1, v2):
     return v/vnorm
 
 
-def vertical_vct(v, side = False):
+def vertical_vct(v, side = False) -> np.ndarray:
     """
     Find a vector vertical to the given.
 
@@ -370,7 +370,7 @@ def vertical_vct(v, side = False):
     return vv/np.linalg.norm(vv)
 
 
-def project(p, lf):
+def project(p, lf) -> np.ndarray:
     """
     Project a point onto a line.
 
@@ -389,7 +389,7 @@ def project(p, lf):
 
 
 # INTERSECTION
-def lnr_inters(lf1, lf2):
+def lnr_inters(lf1, lf2) -> np.ndarray:
     """
     Find the intersection of two lines.
 
@@ -406,7 +406,7 @@ def lnr_inters(lf1, lf2):
     return np.array([x0, y0])
 
 
-def crv_inters(c1, c2):
+def crv_inters(c1, c2) -> list:
     """
     Find the first intersection of two curves.
 
@@ -448,7 +448,7 @@ def crv_inters(c1, c2):
         return [False, None, None, None]
 
 
-def crvself_inters(c):
+def crvself_inters(c) -> list:
     """
     Find the first intersection of a 
 
@@ -475,28 +475,8 @@ def crvself_inters(c):
     return [b,p,i,j]
 
 
-def crv_inters_insert(c1, c2):
-    """
-    Get the first point of intersections of two curves and insert it to the curves.
-
-    Args:
-        c1 (array-like): [[x0, y0], [x1, y1], ... , [xn1, yn1]] the matrix containing all the point coordinates of curve 1
-        c2 (array-like): [[x0, y0], [x1, y1], ... , [xn2, yn2]] the matrix containing all the point coordinates of curve 2
-    
-    Returns:
-        list containing:
-        -c1 (array-like): [[x0, y0], [x1, y1], ... , [xm1, ym1]] the matrix containing all the point coordinates of curve 1
-        -c2 (array-like): [[x0, y0], [x1, y1], ... , [xm2, ym2]] the matrix containing all the point coordinates of curve 2
-
-    """
-    b, p, i, j = crv_inters(c1, c2)
-    if b:
-        c1, c2 = np.insert(c1, p, i+1), np.insert(c2, p, j+1) 
-    return [[c1, i], [c2, j]]
-
-
 # CIRCLES
-def crcl_2pr(p1, p2, r, side = True):
+def crcl_2pr(p1, p2, r, side = True) -> np.ndarray:
     """
     Find a circle passing through two points, with a given radius.
 
@@ -533,7 +513,7 @@ def crcl_2pr(p1, p2, r, side = True):
         return centers[1]
 
 
-def crcl_3p(p1, p2, p3):
+def crcl_3p(p1, p2, p3) -> np.ndarray:
     """
     Find the circle passing through three points.
 
@@ -556,7 +536,7 @@ def crcl_3p(p1, p2, p3):
     return np.array([x0, y0])
 
 
-def crcl_fit(p):
+def crcl_fit(p) -> list:
     """
     Fit a circle onto points. Points must be 4 or more.
 
@@ -583,7 +563,7 @@ def crcl_fit(p):
     return [p0, r]
 
 
-def crcl_tang_2lnr(lf1, lf2, r, quadrnt):
+def crcl_tang_2lnr(lf1, lf2, r, quadrnt) -> list:
     """
     Find circle tangent to two lines with radius r.
 
@@ -622,7 +602,7 @@ def crcl_tang_2lnr(lf1, lf2, r, quadrnt):
     return [p0, ptan1, ptan2]
 
 
-def crcl_tang_segrlim(seg1, seg2):
+def crcl_tang_segrlim(seg1, seg2) -> float:
     """
     Find the minimum and maximum radius of a circle tangent to two line segments, in the quadrant pointed at bu their bisecting vector.
 
@@ -669,7 +649,7 @@ def crcl_tang_segrlim(seg1, seg2):
     return r
 
 
-def crcl_tang_2lnln(lf1, lf2, lf0, quadrnt):
+def crcl_tang_2lnln(lf1, lf2, lf0, quadrnt) -> list:
     """
     Find center tangent to two lines, with center located on a third line.
 
@@ -714,7 +694,7 @@ def crcl_tang_2lnln(lf1, lf2, lf0, quadrnt):
     return [p0, ptan1, ptan2]
 
 
-def crcl_tang_lnpp(lf, p1, p2):
+def crcl_tang_lnpp(lf, p1, p2) -> np.ndarray:
     """
     Find the circle tangent on a line on point 1 and passing through point 2.
 
@@ -738,7 +718,7 @@ def crcl_tang_lnpp(lf, p1, p2):
     return lnr_inters(lf1, lf2)
 
 
-def crcl_tang_2crv(c1, c2, arg):
+def crcl_tang_2crv(c1, c2, arg) -> list:
     """
     Find first circle tangent on two curves that satisfies the given argument.
 
@@ -795,7 +775,7 @@ def crcl_tang_2crv(c1, c2, arg):
         return [False, None, None, None, None, None]
 
 
-def arc_gen(p1, p2, p0, n, reflex = False):
+def arc_gen(p1, p2, p0, n, reflex = False) -> np.ndarray:
     """
     Generate points of an arc, from point 1 to point 2 with point 0 as center. Generated points include point 1 and 2.
 
@@ -851,7 +831,7 @@ def bezier(p, w = 1):
     return bez
 
 
-def parallcrv(c):
+def parallcrv(c) -> np.ndarray:
     """
     Find a curve parallel to the first, at unit distance.
 
@@ -875,7 +855,7 @@ def parallcrv(c):
 
 
 # SINGLE CURVE METRICS
-def crv_len(c):
+def crv_len(c) -> np.ndarray:
     """
     Calculate the length of the curve at every point of it.
 
@@ -894,7 +874,7 @@ def crv_len(c):
     return clen
 
 
-def crv_ang(c):
+def crv_ang(c) -> np.ndarray:
     """
     Calculate the additive curvature angle of the curve at every point of it.
 
@@ -913,7 +893,7 @@ def crv_ang(c):
     return cang
 
 
-def crv_curvature(c):
+def crv_curvature(c) -> np.ndarray:
     """
     Calculate the curvature of the curve.
 
@@ -932,7 +912,7 @@ def crv_curvature(c):
 
 
 # SINGLE CURVE MORPHOLOGY
-def smooth_zigzag(c, minang, varp = 0.5):
+def smooth_zigzag(c, minang, varp = 0.5) -> np.ndarray:
     """
     Smoothen a curve by removing zig-zagging segments.
 
@@ -968,7 +948,7 @@ def smooth_zigzag(c, minang, varp = 0.5):
     return sc
 
 
-def smooth_loops(c):
+def smooth_loops(c) -> np.ndarray:
     """
     Clear looping sections of a curve.
 
@@ -990,7 +970,7 @@ def smooth_loops(c):
     return cs
 
 
-def smooth_fillet_crcl(c, minang, c_factor = 0.8):
+def smooth_fillet_crcl(c, minang, c_factor = 0.8) -> np.ndarray:
     """
     Smoothen a curve's sharp angles by filleting them away with circular arcs.
 
@@ -1039,7 +1019,7 @@ def smooth_fillet_crcl(c, minang, c_factor = 0.8):
     return csmooth
 
 
-def smooth_fillet_bezier(c, minang, b_factor = 0.8):
+def smooth_fillet_bezier(c, minang, b_factor = 0.8) -> np.ndarray:
     """
     Smoothen a curve's sharp angles by filleting them away with bezier.
 
@@ -1083,7 +1063,7 @@ def smooth_fillet_bezier(c, minang, b_factor = 0.8):
     return csmooth
 
 
-def smooth_spline(c, centripetal = True, smoothfact = 0.7):
+def smooth_spline(c, centripetal = True, smoothfact = 0.7) -> np.ndarray:
     """
     Smoothen a curve by aproximating it with a spline.
 
@@ -1102,7 +1082,7 @@ def smooth_spline(c, centripetal = True, smoothfact = 0.7):
     return np.array(spline.evalpts)
 
 
-def clr_duplicates(c, tol = 10**-4):
+def clr_duplicates(c, tol = 10**-4) -> np.ndarray:
     """
     Clear "duplicate" points of a curve, within a certain tolerance.
 
@@ -1140,7 +1120,7 @@ def clr_duplicates(c, tol = 10**-4):
     return cc
 
 
-def crv_cleanup(c, zigzagang, filletang, fmethod, varp = 0.3, ffactor = 0.8, tol = 10**-4):
+def crv_cleanup(c, zigzagang, filletang, fmethod, varp = 0.3, ffactor = 0.8, tol = 10**-4) -> np.ndarray:
     """
     Clean a curve from zigzagging patterns, loops, duplicate points and sharp angles.
 
@@ -1186,6 +1166,7 @@ def crv_div(c, div):
         -j (ndarray): vector containing the indexes of the division points in cd
 
     """
+    pass # NEED TO EDIT IT WITH SPLINE
     c = np.array(c)
     clen = crv_len(c)
     divlen = np.array(div) * clen[-1]
@@ -1201,7 +1182,7 @@ def crv_div(c, div):
     return [cd, j]
 
 
-def crv_cut(c, arg, op, return_index = False):
+def crv_cut(c, arg, op, return_index = False) -> np.ndarray:
     """
     Return the curve part that satisfy the inequality: c (op) arg.
 
@@ -1230,7 +1211,7 @@ def crv_cut(c, arg, op, return_index = False):
         return c[i]
 
 
-def crv_fit2p(c, p1, p2, i1 = 0, i2 = -1, proxi_snap = False):
+def crv_fit2p(c, p1, p2, i1 = 0, i2 = -1, proxi_snap = False) -> np.ndarray:
     """
     Transforms points of a curve, so the indexed points fall onto given coordinates.
 
@@ -1267,7 +1248,7 @@ def crv_fit2p(c, p1, p2, i1 = 0, i2 = -1, proxi_snap = False):
 
 
 # CURVE INTERACTIONS
-def crv_dist(c1, c2):
+def crv_dist(c1, c2) -> np.ndarray:
     """
     Measure distance between points of two curves.
 
@@ -1288,13 +1269,13 @@ def crv_dist(c1, c2):
     return np.hypot(c1x-c2x, c1y-c2y)
 
 
-def crv_p_dist(c, p):
+def crv_p_dist(c, p) -> float:
     """
     Accurately measure distance of a point from curve.
 
     Args:
         c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve
-        p (array-liek): [x, y] coordinates of the point
+        p (array-like): [x, y] coordinates of the point
     
     Returns:
         list containing:
@@ -1309,7 +1290,7 @@ def crv_p_dist(c, p):
     return min(lnrdist, vrtxdist)
 
 
-def crv_common(c1, c2, tol = 10**-4):
+def crv_common(c1, c2, tol = 10**-4) -> np.ndarray:
     """
     Check if two curves have common points within tolerance.
 
@@ -1373,7 +1354,7 @@ def crv_common(c1, c2, tol = 10**-4):
 #     return [c1u, c2u]
 
 
-def clr_common(c1, c2, tol = 10**-4):
+def clr_common(c1, c2, tol = 10**-4) -> np.ndarray:
     """
     Clears the points of c1 that are common with c2.
 
@@ -1394,7 +1375,7 @@ def clr_common(c1, c2, tol = 10**-4):
     return np.delete(c1, inds)
 
 
-def common_ends(c1, c2, end1 = None, end2 = None, tol = 10**-4):
+def common_ends(c1, c2, end1 = None, end2 = None, tol = 10**-4) -> int:
     """
     Find two end points of two curves that are common.
 
@@ -1451,7 +1432,7 @@ def common_ends(c1, c2, end1 = None, end2 = None, tol = 10**-4):
     return np.nonzero(boolist)[0][0]
 
 
-def patch(c1, c2, comend_args = []):
+def patch(c1, c2, comend_args = []) -> np.ndarray:
     """
     Patch two curves into one.
 
@@ -1482,7 +1463,7 @@ def patch(c1, c2, comend_args = []):
     return np.vstack((c1,c2))
 
 
-def fillet(c1, c2, r, n, comend_args = [], reflex = False, crosscheck = False):
+def fillet(c1, c2, r, n, comend_args = [], reflex = False, crosscheck = False) -> list:
     """
     ### DEPRECATED ###
     Fillet two patchable curves into one. If it fails to find a fillet circle, a simple patched curve is returned.
@@ -1607,7 +1588,7 @@ def fillet(c1, c2, r, n, comend_args = [], reflex = False, crosscheck = False):
         return [b, c, crcl_data]
 
 
-def fillet_aprox(c1, c2, r, n, comend_args = [], reflex = False, crosscheck = False):
+def fillet_aprox(c1, c2, r, n, comend_args = [], reflex = False, crosscheck = False) -> list:
     """
     Fillet two patchable curves into one. If it fails to find a fillet circle with requested radius an aproximate radius is used. 
     Note: This fillet finds only circles tangent to diverging portions of curves, this works well for our purposes. To generalise it, one must modify the crcl_tang_2ln_rlim
@@ -1743,3 +1724,115 @@ def fillet_aprox(c1, c2, r, n, comend_args = [], reflex = False, crosscheck = Fa
     crcl_data = [p0, ptan1, ptan2, i, j]
 
     return [r, c, crcl_data]
+
+
+# GEOSHAPE CLASS
+class GeoShape:
+    """
+    Describes a 2d geometry. Carries data relating to the points, sequences and segments of a geometric shape.
+
+    Attr:
+        points (ndarray):  [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates
+        squencs (list): A list of lists of indexes pointing in the points matrix, describing the points each curve passes through
+        shapes (list): A list of lists of indexes pointing in the squencs list, showing the sequences that each shape consists of
+
+    Methods:
+        transform: Transform the GeoShape's points
+        recenter: Center the GeoShape, around point
+    
+    """
+
+    def __init__(self, points, squencs, shapes):
+        self.points = points
+        self.squencs = squencs
+        self.shapes = shapes
+
+
+    def transform(self, center, theta, sf, tv) -> list:
+        """
+        Transform the GeoShape's points.
+
+        Args:
+            center (array-like): [x, y] the coordinates of the center of scaling and rotation
+            theta (float): the angle of rotation
+            sf (array-like): [sfx, sfy] the factors of scaling
+            tv (array-like): [vx, vy] the components of displacement vector
+        
+        """
+        points = self.points
+        points = rotate(points, center, theta)
+        points = scale(points, center, sf)
+        self.points = translate(points, tv)
+
+
+    def recenter(self, point) -> np.ndarray:
+        """
+        Center the GeoShape, around point.
+
+        Args:
+            point (array-like): [x, y] coordinates of the point
+        
+        Returns:
+            tv (ndarray): [x, y] coordinates of displacement vector
+        
+        """
+        x0 = (np.max(self.points[:,0]) + np.min(self.points[:,0])) / 2
+        y0 = (np.max(self.points[:,1]) + np.min(self.points[:,1])) / 2
+        tv = point - np.array([x0, y0])
+        self.points = translate(self.points, tv)
+        return tv
+
+
+def gs_merge(gsl) -> GeoShape:
+    """
+    Merge an array of GeoShapes, into one GeoShape object.
+
+    Args:
+        gsl (list): A list containing all the shape objects
+    
+    Returns:
+        gs (GeoShape): A GeoShape object consisting of all others
+
+    """
+    # Assemble all the shapes
+    points = np.array([], dtype=np.int64).reshape(0,2)
+    squencs = []
+    shapes = []
+    i = 0
+    j = 0
+    for gs in gsl:
+        points = np.vstack((points, gs.points))
+        # Fix squencs indices
+        gs.squencs = list(map(lambda y: list(map(lambda x: x+i, y)), gs.squencs))
+        squencs = squencs + gs.squencs
+        # Fix shapes indices
+        gs.shapes = list(map(lambda y: list(map(lambda x: x+j, y)), gs.shapes))
+        shapes = shapes + gs.shapes
+        i = np.shape(points)[0]
+        j = len(squencs)
+    
+    # Removing duplicate squencs and shapes
+    # Squencs
+    un_squencs = []
+    inv = np.zeros(len(squencs))
+
+    for i in range(len(squencs)):
+        if squencs[i] in un_squencs:
+            inv[i] = un_squencs.index(squencs[i])
+        else:
+            inv[i] = len(un_squencs)
+            un_squencs.append(squencs[i])
+
+    squencs = un_squencs
+    for i in range(len(shapes)):
+        shapes[i] = list(inv[shapes[i]])
+
+    # Shapes
+    un_shapes = []
+    for i in range(len(shapes)):
+        if not (shapes[i] in un_shapes):
+            un_shapes.append(shapes[i])
+
+    shapes = un_shapes
+    return GeoShape(points, squencs, shapes)
+

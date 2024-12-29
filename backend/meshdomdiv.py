@@ -7,55 +7,61 @@ import numpy as np
 import geometrics as gmt
 
 # MESH DOMAIN CLASS
-class MeshDomain:
+class MeshDomain(gmt.GeoShape):
     """
-    Describes a four sided mesh domain. Is composed of four geometric curves. One for each side.
+    Extends GeoShape, with further parametres to describe a mesh.
 
     Attr:
-        s11 (ndarray): First of four sides
-        s12 (ndarray): Second side, opposing the first
-        s21 (ndarray): Third of four sides
-        s22 (ndarray): Fourth side, opposing the third
+        points (ndarray): Same as superclass
+        squencs (list): Same as superclass
+        shapes (list): Same as superclass
+        spacing (list): Contains the requested mesh element size for each point. The spacing over the entire volume is then computed by interpolating these. This is ignored in structured domains
+        nodes (list): Contains an array of floats between 0 and 1, for each curve, that describes where the nodes will be placed along it, overrides spacing
+        mesh_types (list): Contains strings describing the meshing method for each shape. 'hex' for structured hexa mesh, 'tri' for unstructured tri mesh, 'void' to remove domain from control volume (for example the airfoil body)
 
     Methods:
+        YET TO BE DECLARED
 
     """
-    def __init__(self, s11, s12, s21, s22):
-        self.s11 = s11
-        self.s12 = s12
-        self.s21 = s21
-        self.s22 = s22
+
+    def __init__(self, points, squencs, shapes, spacing, nodes, mesh_types):
+        super(MeshDomain, self).__init__(points, squencs, shapes)
+        self.nodes = nodes
+        self.spacing = spacing
+        self.mesh_types = mesh_types
 
 
-    def invert(self, sidekey):
-        """
-        Invert the sides of the domain.
-
-        Args:
-            sidekey (int): can be 1 or 2, pertaining to sides s11, s12 and s21, s22 respectively.
-
-        """
-        if sidekey == 1:
-            self.s11 = np.flipud(self.s11)
-            self.s12 = np.flipud(self.s12)
-        elif sidekey == 2:
-            self.s21 = np.flipud(self.s21)
-            self.s22 = np.flipud(self.s22)
 
 
-    def flip(self):
-        """
-        Flip the s11 and s12 with the s21 and s22.
-        """
-        self.s11, self.s21 = self.s21, self.s11
-        self.s12, self.s22 = self.s22, self.s12
 
+# def invert(self, sidekey):
+#     """
+#     Invert the sides of the domain.
+
+#     Args:
+#         sidekey (int): can be 1 or 2, pertaining to sides s11, s12 and s21, s22 respectively.
+
+#     """
+#     if sidekey == 1:
+#         self.s11 = np.flipud(self.s11)
+#         self.s12 = np.flipud(self.s12)
+#     elif sidekey == 2:
+#         self.s21 = np.flipud(self.s21)
+#         self.s22 = np.flipud(self.s22)
+
+
+# def flip(self):
+#     """
+#     Flip the s11 and s12 with the s21 and s22.
+#     """
+#     self.s11, self.s21 = self.s21, self.s11
+#     self.s12, self.s22 = self.s22, self.s12
 
 
 # SUPPORTING FUNCTIONS
 def _ile(bodyc):
     """
-    Return the index of the leading edge point of the foil.
+    Return the index of the leading edge point of the foil curve.
     """
     return np.argmax(np.hypot(bodyc[:,0] - bodyc[0,0], bodyc[:,1] - bodyc[0,1]))
 
@@ -198,11 +204,10 @@ def p2p_key():
     pass
 
 
-
-
-
-# MESH DOMAIN CONNECTORS
-
+def cavity_filler():
+    """
+    Generate an unstructured mesh domain 
+    """
 
 
 # TESTING SECTIONS

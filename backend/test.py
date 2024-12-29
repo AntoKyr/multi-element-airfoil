@@ -55,7 +55,7 @@ def multivartest(array, funct):
     plt.show()
 
 
-if 'want to read':
+if 'want to read'=='no':
     # afl = flg.read_ord(1)
     # s11 = afl.points[afl.squencs[0]]
     # s12 = s11 + 20 * gmt.parallcrv(s11)
@@ -102,17 +102,22 @@ afld = flg.read_ord()
 
 _ = list(afld.keys())
 namearr = [[_[6], _[1], _[0]], [_[8], _[7], _[3]], [_[2], _[4], _[5]]]
-le_func = rsg.bare_le
-te_func = rsg.bare_te
+le_func = rsg.act_slat
+te_func = rsg.fowler_1slot
 
 def hld_test(name: str):
     try:
         afl = afld[name]
-        afl.transform([0,0], -0, [0.1, 0.1], [0, 0])
         aflcrv = flg.foilpatch(le_func(afl), te_func(afl))
-
         gsl = flg.crv2gs(aflcrv)
         gs = flg.gs_merge(gsl)
+        for squence in gs.squencs:
+            cf = gs.points[squence]
+            bl = cf + 5 * gmt.parallcrv(cf)
+            plt.plot(bl[:,0], bl[:,1], '--r')
+            plt.plot([cf[0,0], bl[0,0]], [cf[0,1], bl[0,1]], '--r')
+            plt.plot([cf[-1,0], bl[-1,0]], [cf[-1,1], bl[-1,1]], '--r')
+
         flg.gs_plot(gs, indxs=False, marks=False, show=False)
         plt.title(name)
     except:

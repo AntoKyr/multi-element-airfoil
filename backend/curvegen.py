@@ -7,7 +7,7 @@
 import numpy as np
 import geometrics as gmt
 
-def median(c, theta, weight_fun, n, closed_brackets = True):
+def median(c, theta, weight_fun, n, closed_brackets = True) -> np.ndarray:
     """
     Generate a curve by calculating the median y coordinate between the curve and a line, applying a weight function.
 
@@ -41,7 +41,7 @@ def median(c, theta, weight_fun, n, closed_brackets = True):
     return np.array(mcs.evalpts)
 
 
-def arc_p(c, p, n):
+def arc_p(c, p, n) -> np.ndarray:
     """
     Generate an arc curve, arcing from the first curve point to the last, that would, if extended pass through the given point.
 
@@ -57,7 +57,7 @@ def arc_p(c, p, n):
     return gmt.arc_gen(c[0], c[-1], p0, n)
 
 
-def arc_tang(c, n):
+def arc_tang(c, n) -> np.ndarray:
     """
     Generate an arc curve, tangent of the first curve segment and arcing to the last curve point
 
@@ -73,7 +73,7 @@ def arc_tang(c, n):
     return gmt.arc_gen(c[0], c[-1], p0, n)
 
 
-def bezier(c, m, gens, n, w = 1):
+def bezier(c, m, gens, n, w = 1) -> np.ndarray:
     """
     Generate a bezier curve based on a curve.
 
@@ -97,7 +97,7 @@ def bezier(c, m, gens, n, w = 1):
     return c
 
 
-def marriage(c1, c2, x1, x2, x0, n, w = 1):
+def marriage(c1, c2, x1, x2, x0, n, w = 1) -> np.ndarray:
     """
     Generate a curve by mix-matching two others, through unholy means. Both should be somewhat parallel and lay wide on the x axis.
     

@@ -305,8 +305,6 @@ def fixed_slat(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, d 
     sloot = flg.gs2afl(sloot)
     sloot.default_state()
     sloot.transform([0,0], dtheta, [cs/100, cs/100], [-d-cs, h])
-    tfv = afl.default_state(transform=False)
-    sloot.transform([0,0], -tfv[0], [1/tfv[1], 1/tfv[1]], -tfv[2])
     sloot = [[sloot.points[sloot.squencs[0]]]]
 
     return flg.hld_gen(afl, hld.bare_le, [divx]) + sloot
@@ -348,7 +346,6 @@ def act_slat(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, gap 
         cgenfunc = 'arc_p'
         thetaf = 1.2
 
-    gf = 1 / afl.default_state(transform=False)[1]
     args1 = [css, csp, cgenfunc, cgenarg, 0]
     args2 = [divx, css, csp, cgenfunc, cgenarg, 0]
     sloot = flg.hld_gen(afl, hld.slat, args1)
@@ -358,7 +355,7 @@ def act_slat(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, gap 
     actheta = _nonerand(actheta, 'beta33', [0.6*arctheta, 0.7*arctheta]) * thetaf / ((t/12.5)**0.35 + 0.2 * cl/t)
     dtheta = - _nonerand(None, 'beta22', [3.5, 4]) * (arctheta - actheta) * (actheta/arctheta)**2 * ((t/12.5)**0.5 + 0.5 * cl/t)
     gap = _nonerand(gap, 'beta33', [1, 3]) + cs * np.sin(-dtheta) * ((t/12.5)**0.5 + 0.2 * cl/t)
-    tv = gf * gap * gmt.bisector_vct(sloot[0][1][0]-p0, sloot[0][1][-1]-p0)
+    tv = gap * gmt.bisector_vct(sloot[0][1][0]-p0, sloot[0][1][-1]-p0)
 
     sloot = sloot[0]
     sloot = [gmt.rotate(sloot[0], sloot[1][0], dtheta), gmt.rotate(sloot[1], sloot[1][0], dtheta)]  
@@ -391,7 +388,7 @@ def max_slot(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, gap 
     csp1 = _nonerand(None, 'beta33', [3, 4]) * (t/10) ** 0.5
     width = _nonerand(width, 'beta33', [7, 9])
     csp2 = csp1 + width
-    dtheta = gap/cs
+    dtheta = 1.2 * gap/cs
 
     if crv_type == 1:
         nf = _nonerand(None, 'beta33', [0.6, 0.8])
@@ -537,8 +534,6 @@ def junk_flap(afl: flg.Airfoil, divx = [60, 45], cf = None, crv_type = None, d =
     sloot = flg.gs2afl(sloot)
     sloot.default_state()
     sloot.transform([0,0], dtheta, [cf/100, cf/100], [100+d, -h])
-    tfv = afl.default_state(transform=False)
-    sloot.transform([0,0], -tfv[0], [1/tfv[1], 1/tfv[1]], -tfv[2])
     floop = [[sloot.points[sloot.squencs[0]]]]
 
     return flg.hld_gen(afl, hld.bare_te, [divx]) + floop
@@ -585,11 +580,10 @@ def flap_1slot(afl: flg.Airfoil, divx = [60, 45], cf = None, crv_type = None, ga
 
     bood = flg.hld_gen(afl, hld.te_slot, body_args)
     floop = flg.hld_gen(afl, hld.flap, flap_args)
-    gf = 1 / afl.default_state(transform=False)[1]
     
     slot_curve = flg.hld_gen(afl, hld.te_slot, [divx, cfs, cfp, cgenfunc, cgenarg, 0])[0][1]
     p0 = gmt.crcl_fit(slot_curve)[0]
-    tv = gmt.rotate(- gf * gap * gmt.bisector_vct(slot_curve[0]-p0, slot_curve[-1]-p0), [0,0], np.pi/10)
+    tv = gmt.rotate(- gap * gmt.bisector_vct(slot_curve[0]-p0, slot_curve[-1]-p0), [0,0], np.pi/10)
 
     floop = floop[0][0]
     floop = gmt.rotate(floop, p0, dtheta)
@@ -633,7 +627,6 @@ def flap_2slot_ff(afl: flg.Airfoil, divx = [60, 45], cf1 = None, dtheta1 = None,
 
     bood = flg.hld_gen(afl, hld.te_slot, body_args)
     floop = flg.hld_gen(afl, hld.flap, flap_args)
-    gf1 = 1 / afl.default_state(transform=False)[1]
 
     floopafl = flg.gs2afl(flg.crv2gs(floop)[0])
     floop = flg.foilpatch(_fixed_fore_flap(floopafl, divx2, cf2, gap2), bare_te(floopafl, divx2))
@@ -641,7 +634,7 @@ def flap_2slot_ff(afl: flg.Airfoil, divx = [60, 45], cf1 = None, dtheta1 = None,
     p2 = bood[0][-1][0]
     p1 = floop[1][0][np.argmax(np.hypot(floop[1][0][:,0] - floopafl.points[0,0], floop[1][0][:,1] - floopafl.points[0,1]))]  # this gets the leading edge point
     p0, r0 = flg.le_crcl(flg.gs2afl(flg.crv2gs(floop)[1]))
-    tv = p2 - p1 - np.array([0, gf1*gap1 + r0])
+    tv = p2 - p1 - np.array([0, gap1 + r0])
     floop[0][0] = gmt.translate(gmt.rotate(floop[0][0], p0, dtheta1), tv)
     floop[1][0] = gmt.translate(gmt.rotate(floop[1][0], p0, dtheta1), tv)
     
@@ -720,8 +713,7 @@ def flap_2slot_sa(afl: flg.Airfoil, divx = [60, 45], cf1 = None, dtheta1 = None,
     cfp = cf1 * (1 - cavfac)
     cfs = _nonerand(None, 'beta33', [0.6*cfp, 0.74*cfp])
     cf2 = _nonerand(cf2, 'beta33', [40, 40])
-    gf1 = 1 / afl.default_state(transform=False)[1]
-    gap1 = _nonerand(None, 'beta33', [1, 2.5]) * gf1
+    gap1 = _nonerand(None, 'beta33', [1, 2.5])
     gap2 = _nonerand(None, 'beta33', [0.8*gap1, 1.2*gap1])
     dtheta1 = _nonerand(dtheta1, 'beta33', [40, 40])
     dtheta1 = -np.radians(dtheta1)
@@ -736,11 +728,10 @@ def flap_2slot_sa(afl: flg.Airfoil, divx = [60, 45], cf1 = None, dtheta1 = None,
     floop = flg.hld_gen(afl, hld.flap, flap_args)
     floopafl = flg.gs2afl(flg.crv2gs(floop)[0])
 
-    gf = 1 / afl.default_state(transform=False)[1]
     p2 = bood[0][-1][0]
     p1 = floop[0][0][np.argmax(np.hypot(floop[0][0][:,0] - floopafl.points[0,0], floop[0][0][:,1] - floopafl.points[0,1]))]  # this gets the leading edge point
     p0, r0 = flg.le_crcl(flg.gs2afl(flg.crv2gs(floop)[0]))
-    tv = p2 - p1 - np.array([0, gf*(gap1 + t * cf1 / 200) + r0])
+    tv = p2 - p1 - np.array([0, (gap1 + t * cf1 / 200) + r0])
 
     floop = flg.foilpatch(bare_le(floopafl, divx2), _slot_after_flap(floopafl, divx2, cf2, dtheta2, gap2))
 
@@ -784,14 +775,13 @@ def fowler_1slot(afl: flg.Airfoil, divx = [60, 45], cf = None, crv_type = None, 
 
     bood = flg.hld_gen(afl, hld.te_slot, body_args)
     floop = flg.hld_gen(afl, hld.flap, flap_args)
-    gf = 1 / afl.default_state(transform=False)[1]
     
     floopc = floop[0][0]
     ftei = np.argmax(np.hypot(floopc[:,0] - floopc[0,0], floopc[:,1] - floopc[0,1]))
     p1 = floopc[ftei]
     p2 = bood[0][-1][0]
     p0, r0 = gmt.crcl_fit(floopc[ftei-3:ftei+3])
-    tv = p2 - p1 + np.array([dx, -dy -t * cf/125]) * gf
+    tv = p2 - p1 + np.array([dx, -dy -t * cf/125])
     floopc = gmt.rotate(floopc, p0, dtheta)
     floopc = gmt.translate(floopc, tv)
     floop = [[floopc]]
