@@ -16,30 +16,36 @@ def draw_crcl(p0, p1):
     plt.plot(xs, ys)
 
 
-def draw_curve(point_no, axislims = [-10,10,-10,10]):
-    points = np.zeros((point_no, 2))
-    fig = plt.figure()
-    plt.axis(axislims)
+def draw_curves(fignum = 1):
+    crv = []
+    crvl = []
+    fig = plt.figure(fignum)
+    plt.title('Draw curves')
+    plt.xlabel('[ Click: place point | Enter: finish curve | Escape: exit ]')
     plt.grid()
-    global drc_i
-    drc_i = 0
 
-    def cordgetter(event):
-        global drc_i
-        points[drc_i,0], points[drc_i,1] = event.xdata, event.ydata
-        plt.plot(points[drc_i,0], points[drc_i,1], '.r')
-        if drc_i > 0:
-            plt.plot(points[drc_i-1:drc_i+1, 0], points[drc_i-1:drc_i+1, 1],'b')
+    def place_point(event):
+        x, y = event.xdata, event.ydata
+        plt.plot(x, y, '.r')
+        if len(crv) > 0:
+            plt.plot([crv[-1][0], x], [crv[-1][1], y],'b')
+        crv.append([x, y])
         plt.draw()
-        if drc_i == point_no - 1:
+
+    def keyvent(event):
+        if event.key == 'enter':
+            crvl.append(np.array(crv))
+            crv.clear()
+        elif event.key == 'escape':
+            fig.canvas.mpl_disconnect(cid2)
             fig.canvas.mpl_disconnect(cid)
             plt.close()
-        drc_i += 1
 
-    cid = fig.canvas.mpl_connect('button_press_event', cordgetter)
+    cid2 = fig.canvas.mpl_connect('key_press_event', keyvent)
+    cid = fig.canvas.mpl_connect('button_press_event', place_point)
+
     plt.show()
-    
-    return points
+    return crvl
 
 
 def multivartest(array, funct):
@@ -55,62 +61,21 @@ def multivartest(array, funct):
     plt.show()
 
 
-if 'want to read'=='no':
-    # afl = flg.read_ord(1)
-    # s11 = afl.points[afl.squencs[0]]
-    # s12 = s11 + 20 * gmt.parallcrv(s11)
-    # s21 = np.array([s11[0], s12[0]])
-    # s22 = np.array([s11[-1], s12[-1]])
-    # div1 = [0.47,0.53]
-    # div2 = np.linspace(0,1,4)[1:-1]
-    # msl = mdd.domain_orthosplit(mdd.MeshDomain(s11,s12,s21,s22), div1, div2)
-    # plt.figure()
-    # for ms in msl:
-    #     plt.plot(ms.s11[:,0], ms.s11[:,1], 'k')
-    #     plt.plot(ms.s12[:,0], ms.s12[:,1], 'k')
-    #     plt.plot(ms.s21[:,0], ms.s21[:,1], 'k')
-    #     plt.plot(ms.s22[:,0], ms.s22[:,1], 'k')
+if False: 
+    afld = flg.read_ord()
 
-    # plt.grid()
-    # plt.axis('equal')
-    # plt.show()
+    _ = list(afld.keys())
+    namearr = [[_[6], _[1], _[0]], [_[8], _[7], _[3]], [_[2], _[4], _[5]]]
+    le_func = rsg.act_slat
+    te_func = rsg.fowler_1slot
 
-
-    # n = [0.5, 1.2, 3, 0.2, 2.1, 1.1, 0.7]
-    # theta = [0.1, 0.3, 0.4, 0.2, 0.4, 0.3, 0.1]
-
-    # lt = len(theta)
-    # trilm = np.tril(np.ones((lt,lt)))
-    # vtheta = trilm @ theta
-    # vsx = n * np.sin(vtheta)
-    # vsy = n * np.cos(vtheta)
-    # c = np.transpose([trilm @ vsx, trilm @ vsy])
-    # crvtr = gmt.crv_curvature(c)
-    # print(crvtr)
-    # pc = c + 1/max(crvtr) * gmt.parallcrv(c)
-
-    # plt.plot(c[:,0], c[:,1], label='c')
-    # plt.plot(pc[:,0], pc[:,1], label='pc')
-    # plt.legend()
-    # plt.grid()
-    # plt.axis('equal')
-    # plt.show()
-    pass
-
-
-afld = flg.read_ord()
-
-_ = list(afld.keys())
-namearr = [[_[6], _[1], _[0]], [_[8], _[7], _[3]], [_[2], _[4], _[5]]]
-le_func = rsg.act_slat
-te_func = rsg.fowler_1slot
-
-def hld_test(name: str):
-    try:
+    def hld_test(name: str):
+        # try:
         afl = afld[name]
         aflcrv = flg.foilpatch(le_func(afl), te_func(afl))
-        gsl = flg.crv2gs(aflcrv)
-        gs = flg.gs_merge(gsl)
+        gsl = gmt.crv2gs(aflcrv)
+        gs = gmt.gs_merge(gsl)
+        gs = flg.element_sort(gs)
         for squence in gs.squencs:
             cf = gs.points[squence]
             bl = cf + 5 * gmt.parallcrv(cf)
@@ -120,20 +85,47 @@ def hld_test(name: str):
 
         flg.gs_plot(gs, indxs=False, marks=False, show=False)
         plt.title(name)
-    except:
-        print('*cough cough*')
+        # except:
+        #     print('*cough cough*')
 
 
-def specs(name: str):
-    afl = afld[name]
-    thic = max(flg.thickness(afl)[:,1])
-    camb = max(flg.camberline(afl)[:,1])
-    print('------------------------------------')
-    print(name)
-    print('Max Thickness: ' + str(thic))
-    print('Max Camber: ' + str(camb))
-    print('Max Camber / Max Thickness: ' + str(camb/thic))
-    print('Max Camber ^ 1.5 / Max Thickness: ' + str(camb**1.5/thic))
+    def specs(name: str):
+        afl = afld[name]
+        thic = max(flg.thickness(afl)[:,1])
+        camb = max(flg.camberline(afl)[:,1])
+        print('------------------------------------')
+        print(name)
+        print('Max Thickness: ' + str(thic))
+        print('Max Camber: ' + str(camb))
+        print('Max Camber / Max Thickness: ' + str(camb/thic))
+        print('Max Camber ^ 1.5 / Max Thickness: ' + str(camb**1.5/thic))
 
 
-multivartest(namearr, hld_test)
+    multivartest(namearr, hld_test)
+
+
+plt.close()
+
+plt.axis([-10, 10, -10, 10])
+
+curvs = draw_curves()
+
+c1,c2 = curvs
+
+facepairlist = mdd.opposing_faces(c1, c2, lambda x,y,z: True)
+
+plt.plot(c1[:,0], c1[:,1],'-')
+plt.plot(c2[:,0], c2[:,1],'-')
+plt.plot(c1[:,0], c1[:,1],'.')
+plt.plot(c2[:,0], c2[:,1],'.')
+
+print(facepairlist[0])
+facepair = facepairlist[0]
+face1 = facepair.face1
+face2 = facepair.face2
+plt.plot(c1[face1,0], c1[face1,1], '*')
+plt.plot(c2[face2,0], c2[face2,1], '*')
+plt.plot([c1[face1[0], 0], c2[face2[0], 0]], [c1[face1[0], 1], c2[face2[0], 1]], 'c')
+plt.plot([c1[face1[-1], 0], c2[face2[-1], 0]], [c1[face1[-1], 1], c2[face2[-1], 1]], 'c')
+
+plt.show()

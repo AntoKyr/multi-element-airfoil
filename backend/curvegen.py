@@ -6,19 +6,21 @@
 
 import numpy as np
 import geometrics as gmt
+from typing import Union, Callable
 
-def median(c, theta, weight_fun, n, closed_brackets = True) -> np.ndarray:
+def median(c: Union[list,tuple,np.ndarray], theta: float, weight_fun: Callable[[np.ndarray], np.ndarray], n: int, closed_brackets: bool = True) -> np.ndarray:
     """
     Generate a curve by calculating the median y coordinate between the curve and a line, applying a weight function.
 
     Args:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
-        theta (float): the angle at which to rotate the curve before calculating the median
-        weight_fun (function): the function from which the weights of the median calculation are taken
-        closed_brackets (bool): If True, after rotation, all curve points with x values exceeding the segment created by the first and last point of the curve, are removed
+        c: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
+        theta: the angle at which to rotate the curve before calculating the median
+        weight_fun: the function from which the weights of the median calculation are taken
+        n: the number of points the generated curve will have
+        closed_brackets: If True, after rotation, all curve points with x values exceeding the segment created by the first and last point of the curve, are removed
     
     Returns:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
+        [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
 
     """
     c = gmt.rotate(c, np.array([0,0]), theta)
@@ -41,31 +43,33 @@ def median(c, theta, weight_fun, n, closed_brackets = True) -> np.ndarray:
     return np.array(mcs.evalpts)
 
 
-def arc_p(c, p, n) -> np.ndarray:
+def arc_p(c: Union[list,tuple,np.ndarray], p: Union[list,tuple,np.ndarray], n: int) -> np.ndarray:
     """
     Generate an arc curve, arcing from the first curve point to the last, that would, if extended pass through the given point.
 
     Args:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
-        p (array-like): [x, y] coordinates of the point
+        c: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
+        p: [x, y] coordinates of the point
+        n: the number of points the generated curve will have
     
     Returns:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
+        [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
 
     """
     p0 = gmt.crcl_3p(p, c[0], c[-1])
     return gmt.arc_gen(c[0], c[-1], p0, n)
 
 
-def arc_tang(c, n) -> np.ndarray:
+def arc_tang(c: Union[list,tuple,np.ndarray], n: int) -> np.ndarray:
     """
     Generate an arc curve, tangent of the first curve segment and arcing to the last curve point
 
     Args:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
+        c: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
+        n: the number of points the generated curve will have
     
     Returns:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
+        [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
 
     """
     lf = np.polyfit([c[0,0], c[1,0]], [c[0,1], c[1,1]], 1)
@@ -73,18 +77,19 @@ def arc_tang(c, n) -> np.ndarray:
     return gmt.arc_gen(c[0], c[-1], p0, n)
 
 
-def bezier(c, m, gens, n, w = 1) -> np.ndarray:
+def bezier(c: Union[list,tuple,np.ndarray], m: int, gens: int, n: int, w: Union[list,tuple,np.ndarray] = 1) -> np.ndarray:
     """
     Generate a bezier curve based on a curve.
 
     Args:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xm, ym]] the matrix containing all the point coordinates of the curve
-        m (int):  2 <= m <= np.shape(c)[0], number of points of the curve to take as control points, if m = 'all', take all points
-        gens (int): number of generations (each generation is based on the previous curve)
-        w (list): weights of the control points, length must be equal to the (int) m argument
+        c: [[x0, y0], [x1, y1], ... , [xm, ym]] the matrix containing all the point coordinates of the curve
+        m:  2 <= m <= np.shape(c)[0], number of points of the curve to take as control points, if m = 'all', take all points
+        gens: number of generations (each generation is based on the previous curve)
+        n: the number of points the generated curve will have
+        w: weights of the control points, length must be equal to the (int) m argument
     
     Returns:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
+        [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
 
     """
     for i in range(gens):
@@ -97,21 +102,21 @@ def bezier(c, m, gens, n, w = 1) -> np.ndarray:
     return c
 
 
-def marriage(c1, c2, x1, x2, x0, n, w = 1) -> np.ndarray:
+def marriage(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray], x1: float, x2: float, x0: float, n: int, w: Union[list,tuple,np.ndarray] = 1) -> np.ndarray:
     """
     Generate a curve by mix-matching two others, through unholy means. Both should be somewhat parallel and lay wide on the x axis.
     
     Args:
-        c1 (array-like): [[x0, y0], [x1, y1], ... , [xm, ym]] the matrix containing all the point coordinates of curve 1
-        c2 (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 2
-        x1 (float): the x coord of the cut of the first curve
-        x2 (float): the x coord of the cut of the second curve
-        x0 (float): the x coord of the trim off of both curves
-        n (int): the number of curve poitns
-        w (list): the weights of the 4 points of the bezier curve used in the factor frame
+        c1: [[x0, y0], [x1, y1], ... , [xm, ym]] the matrix containing all the point coordinates of curve 1
+        c2: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 2
+        x1: the x coord of the cut of the first curve
+        x2: the x coord of the cut of the second curve
+        x0: the x coord of the trim off of both curves
+        n: the number of points the generated curve will have
+        w: the weights of the 4 points of the bezier curve used in the factor frame
 
     Returns:
-        c (array-like): [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
+        [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
 
     """
     # Flip if needed

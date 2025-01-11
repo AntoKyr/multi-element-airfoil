@@ -31,9 +31,6 @@ class MeshDomain(gmt.GeoShape):
         self.mesh_types = mesh_types
 
 
-
-
-
 # def invert(self, sidekey):
 #     """
 #     Invert the sides of the domain.
@@ -79,6 +76,162 @@ def _lec(bodyc):
     """
     i = _ile(bodyc)
     return gmt.crcl_fit(bodyc[i-2:i+3])
+
+
+# OPPOSING FACES
+class FacePair:
+    """
+    Little helper class.
+
+    Attr:
+        face1 (list): list of indexes corresponding to a curve
+        face2 (list): list of indexes corresponding to another curve
+
+    Methods:
+        flip: interchange face1 and face2    
+    
+    """
+    def __init__(self, face1, face2):
+        self.face1 = face1
+        self.face2 = face2
+
+    def flip(self):
+        face1, face2 = self.face1, self.face2
+        self.face1, self.face2 = face2, face1
+    
+    def __str__(self):
+        return str(self.face1) + '\n' + str(self.face2)
+
+
+def opposing_faces(c1, c2, crit_func):
+    """
+    Find the parts of two geometrics curves which are opposing one another by casting rays from the first curve (c1) to the second (c2). Also apply certain criteria.
+
+    Args:
+        c1: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 1
+        c2: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 2
+        crit_func: criterion function for rays to be valid
+    
+    Returns:
+        list containing two lists, (one for each curve) which contain the indexes of the corresponding opposing faces
+        
+    """
+    c1, c2 = np.array(c1), np.array(c2)
+    # Get the closest points to figure out the correct curve orientation.
+    dists = gmt.crv_dist(c1, c2)
+    pi1 = np.argmin(np.min(dists, axis=1))
+    pi2 = np.argmin(np.min(dists, axis=0))
+    lfac = np.max(dists)
+    j1 = pi1
+    # In case of curve endpoint
+    if j1 == 0:
+        j1 += 1
+    # Get curve orientation sign
+    s1 = - np.sign(gmt.vectorangle(c1[j1-1] - c1[j1], c2[pi2] - c1[j1]))
+    # Generate rays
+    ray1 = lfac * s1 * gmt.parallcrv(c1)
+    # Cast and trace rays
+    face_pair_list = []
+    fbool = False
+    for i in range(len(ray1)):
+        ray = np.array([c1[i], ray1[i] + c1[i]])
+        tris, trps = gmt.raytrace(c2, ray)
+
+        if len(tris) > 0:
+            tri, trp = tris[0], trps[0]
+            if crit_func(c2[tri:tri+2], trp, ray):            # apply ray criterion
+                if not fbool:                      # new casting and traced face borders
+                    cfb, tfb = [i, 0], [tri, 0]
+                    fbool = True
+                cfb[1] = i
+                tfb[1] = tri + 1
+                continue
+
+        if fbool:                                  # save face pair into list
+            face1 = list(range(cfb[0], cfb[1]+1))
+            if tfb[0] > tfb[1]:                    # make sure orientation is correct
+                face2 = list(range(tfb[0]+1, tfb[1]))
+            else:
+                face2 = list(range(tfb[0], tfb[1]+1))
+            face_pair_list.append(FacePair(face1, face2))
+            fbool = False
+
+    if fbool:                                     # in case last ray traces                    
+        face1 = list(range(cfb[0], cfb[1]+1))
+        if tfb[0] > tfb[1]:
+            face2 = list(range(tfb[0]+1, tfb[1]-1, -1))
+        else:
+            face2 = list(range(tfb[0], tfb[1]+1))
+        face_pair_list.append(FacePair(face1, face2))        
+
+    return face_pair_list
+
+
+def face_merger(face_pair_list: list, minsim_all = 0, minsim_1 = 0, minsim_2 = 0):
+    """
+    Merges faces from a list, according to their similarity. All similarity criteria must be passed for a merge to happen.
+
+    Args:
+        face_pair_list: the list containing the face pairs
+        minsim_all: the minimum added similarity of a pair of faces with another pair, in order to be merged
+        minsim_1: the minimum similarity two non-opposing faces of the first curve must have, for the two pairs to be merged
+        minsim_2: the minimum similarity two non-opposing faces of the second curve must have, for the two pairs to be merged
+    
+    Returns:
+        list of merged faces (lists of lists of indexes yada yada)
+
+    """
+    restart = True
+    ll = len(face_pair_list)
+    while restart:
+        restart = False
+
+        for i in range(ll):
+            fpi1, fpi2 = face_pair_list[i]
+            for j in range(i,ll):
+                fpj1, fpj2 = face_pair_list[j]
+                ls1 = len(set(fpj1 + fpi1))
+                ls2 = len(set(fpj2 + fpi2))
+                li1, li2 = len(fpi1), len(fpi2)
+                lj1, lj2 = len(fpj1), len(fpj2)
+                sim_1 = (li1 + lj1 - ls1) / min(li1, lj1)
+                sim_2 = (li2 + lj2 - ls2) / min(li2, lj2)
+                sim_all = (li2 + lj2 + li1 + lj1 - ls1 - ls2) / (min(li1, lj1) + min(li2, lj2))
+                if (sim_1 > minsim_1) and (sim_2 > minsim_2) and (sim_all > minsim_all):
+                    restart = True
+                    break
+            if restart:
+                break
+        
+        if restart:
+            # Generate first face according to orientation
+            if fpj1[-1] > fpj1[0]:
+                start, stop = np.sort([fpj1[0], fpj1[-1], fpi1[0], fpi1[-1]])[[0,-1]]
+                fp1 = list(range(start, stop+1))
+            else:
+                start, stop = np.sort([fpj1[0], fpj1[-1], fpi1[0], fpi1[-1]])[[-1,0]]
+                fp1 = list(range(start, stop-1, -1))
+            # Generate second face according to orientation
+            if fpj2[-1] > fpj2[0]:
+                start, stop = np.sort([fpj2[0], fpj2[-1], fpi2[0], fpi2[-1]])[[0,-1]]
+                fp2 = list(range(start, stop+1))
+            else:
+                start, stop = np.sort([fpj2[0], fpj2[-1], fpi2[0], fpi2[-1]])[[-1,0]]
+                fp2 = list(range(start, stop-1, -1))
+                    
+            fp = FacePair(fp1, fp2)
+
+            # Pop out old face pairs and place new one
+            face_pair_list.pop(j)
+            face_pair_list.pop(i)
+            face_pair_list.append(fp)
+
+    return face_pair_list
+
+
+
+
+
 
 
 # GENERAL DOMAIN FUNCTIONS
@@ -209,6 +362,18 @@ def cavity_filler():
     Generate an unstructured mesh domain 
     """
 
+
+def element_domain(hla: gmt.GeoShape):
+    """
+    Build a boundary layer domain around elements of a high lift array. 
+
+    Args:
+        hla: high lift array GeoShape
+
+    Returns:
+        ???
+    
+    """
 
 # TESTING SECTIONS
 

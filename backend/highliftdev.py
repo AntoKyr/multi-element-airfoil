@@ -7,6 +7,7 @@
 import numpy as np
 import geometrics as gmt
 import curvegen as crvgen
+from typing import Union, Callable
 
 # Some documentation for you
 # cgenarg depending on cgenfunc
@@ -61,7 +62,7 @@ def _division_line(sides, divx):
 # HIGH LIFT DEVICES
 
 # LEADING EDGE GOEMETRIES
-def bare_le(sides, divx) -> list:
+def bare_le(sides: list, divx: list) -> list:
     """
     Leave the leading edge as it is.
 
@@ -73,11 +74,11 @@ def bare_le(sides, divx) -> list:
 
     """
     curve = np.vstack(sides)
-    curve = gmt.crv_cut(curve, _division_line(sides, divx), '>=')
+    curve = gmt.crv_ln_cut(curve, _division_line(sides, divx), '>=')
     return [[curve]]
 
 
-def le_flap1(sides, divx, css, csp, dtheta) -> list:
+def le_flap1(sides: list, divx: list, css: float, csp: float, dtheta: float) -> list:
     """
     Generate a leading edge flap, hinging on the pressure side.
 
@@ -95,9 +96,9 @@ def le_flap1(sides, divx, css, csp, dtheta) -> list:
     sp = gmt.cbs_interp(sides[0], css, 0)[0]
     pp = gmt.cbs_interp(sides[1], csp, 0)[0]
     # Surfaces
-    suc_curve = np.vstack((gmt.crv_cut(gmt.crv_cut(sides[0], css, '>'), _division_line(sides, divx), '>='), sp))
-    pre_curve = np.vstack((pp, gmt.crv_cut(gmt.crv_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
-    flap_curve = np.vstack((sp, gmt.crv_cut(sides[0], css, '<'), gmt.crv_cut(sides[1], csp, '<'), pp))
+    suc_curve = np.vstack((gmt.crv_ln_cut(gmt.crv_ln_cut(sides[0], css, '>'), _division_line(sides, divx), '>='), sp))
+    pre_curve = np.vstack((pp, gmt.crv_ln_cut(gmt.crv_ln_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
+    flap_curve = np.vstack((sp, gmt.crv_ln_cut(sides[0], css, '<'), gmt.crv_ln_cut(sides[1], csp, '<'), pp))
     # Move flap
     flap_curve = gmt.rotate(flap_curve, pp, dtheta)
     # Connect flap to suction side
@@ -106,11 +107,11 @@ def le_flap1(sides, divx, css, csp, dtheta) -> list:
     pint = gmt.lnr_inters(lf1, lf2)
     sf_curve = gmt.bezier([suc_curve[-1], pint, flap_curve[0]])(np.linspace(0,1,5))
     # Patch and return
-    curve1 = gmt.patch(gmt.patch(suc_curve, sf_curve), flap_curve)
+    curve1 = gmt.crv_patch(gmt.crv_patch(suc_curve, sf_curve), flap_curve)
     return [[curve1, pre_curve]]
     
 
-def le_flap2(sides, divx, css, csp, dtheta) -> list:
+def le_flap2(sides: list, divx: list, css: float, csp: float, dtheta: float) -> list:
     """
     Generate a leading edge flap, hinging on the suction side.
 
@@ -128,10 +129,10 @@ def le_flap2(sides, divx, css, csp, dtheta) -> list:
     sp = gmt.cbs_interp(sides[0], css, 0)[0]
     pp = gmt.cbs_interp(sides[1], csp, 0)[0]
     # Surfaces
-    suc_curve = np.vstack((gmt.crv_cut(gmt.crv_cut(sides[0], css, '>'), _division_line(sides, divx), '>='), sp))
-    pre_curve = np.vstack((pp, gmt.crv_cut(gmt.crv_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
-    sflap_curve = np.vstack((sp, gmt.crv_cut(sides[0], css, '<')))
-    pflap_curve = np.vstack((gmt.crv_cut(sides[1], csp, '<'), pp))
+    suc_curve = np.vstack((gmt.crv_ln_cut(gmt.crv_ln_cut(sides[0], css, '>'), _division_line(sides, divx), '>='), sp))
+    pre_curve = np.vstack((pp, gmt.crv_ln_cut(gmt.crv_ln_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
+    sflap_curve = np.vstack((sp, gmt.crv_ln_cut(sides[0], css, '<')))
+    pflap_curve = np.vstack((gmt.crv_ln_cut(sides[1], csp, '<'), pp))
     # Move flap suction side
     for i in range(0 ,np.shape(sflap_curve)[0]):
         theta = dtheta * ((css - sflap_curve[i,0])/css)
@@ -147,11 +148,11 @@ def le_flap2(sides, divx, css, csp, dtheta) -> list:
     pre_curve = np.vstack((pint, pre_curve))
     pflap_curve = np.vstack((pflap_curve, pint))
     # Patch and return
-    curve1 = np.vstack((gmt.patch(suc_curve, sflap_curve), pflap_curve))
+    curve1 = np.vstack((gmt.crv_patch(suc_curve, sflap_curve), pflap_curve))
     return [[curve1, pre_curve]]
 
 
-def le_flap3(sides, divx, css, csp, dtheta) -> list:
+def le_flap3(sides: list, divx: list, css: float, csp: float, dtheta: float) -> list:
     """
     Generate a leading edge flap, with smooth curved, variable camber geometry.
 
@@ -169,10 +170,10 @@ def le_flap3(sides, divx, css, csp, dtheta) -> list:
     sp = gmt.cbs_interp(sides[0], css, 0)[0]
     pp = gmt.cbs_interp(sides[1], csp, 0)[0]
     # Surfaces
-    suc_curve = np.vstack((gmt.crv_cut(gmt.crv_cut(sides[0], css, '>'), _division_line(sides, divx), '>='), sp))
-    pre_curve = np.vstack((pp, gmt.crv_cut(gmt.crv_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
-    sflap_curve = np.vstack((sp, gmt.crv_cut(sides[0], css, '<')))
-    pflap_curve = np.vstack((gmt.crv_cut(sides[1], csp, '<'), pp))
+    suc_curve = np.vstack((gmt.crv_ln_cut(gmt.crv_ln_cut(sides[0], css, '>'), _division_line(sides, divx), '>='), sp))
+    pre_curve = np.vstack((pp, gmt.crv_ln_cut(gmt.crv_ln_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
+    sflap_curve = np.vstack((sp, gmt.crv_ln_cut(sides[0], css, '<')))
+    pflap_curve = np.vstack((gmt.crv_ln_cut(sides[1], csp, '<'), pp))
     # Move flap suction side
     rot_cntr = sp
     for i in range(0, np.shape(sflap_curve)[0]):
@@ -183,7 +184,7 @@ def le_flap3(sides, divx, css, csp, dtheta) -> list:
         theta = dtheta * (1 - pflap_curve[i,0] / csp)
         pflap_curve[i,:] = gmt.rotate(pflap_curve[i,:], rot_cntr, theta)
     # Patch and return
-    return [[np.vstack((gmt.patch(suc_curve, sflap_curve), gmt.patch(pflap_curve, pre_curve)))]]
+    return [[np.vstack((gmt.crv_patch(suc_curve, sflap_curve), gmt.crv_patch(pflap_curve, pre_curve)))]]
 
 
 def kruger():
@@ -198,7 +199,7 @@ def kruger():
     """
 
 
-def le_slot(sides, divx, css, csp, cgenfunc, cgenarg, r) -> list:
+def le_slot(sides: list, divx: list, css: float, csp: float, cgenfunc: str, cgenarg: Union[Callable,list,np.ndarray,float], r: float) -> list:
     """
     Cut the leading edge short, so the resulting geometry can be used in combination with a slat.
 
@@ -220,9 +221,9 @@ def le_slot(sides, divx, css, csp, cgenfunc, cgenarg, r) -> list:
     sp = gmt.cbs_interp(sides[0], css, 0)[0]
     pp = gmt.cbs_interp(sides[1], csp, 0)[0]
     # Surfaces
-    suc_curve = np.vstack((gmt.crv_cut(gmt.crv_cut(sides[0], css, '>'), _division_line(sides, divx), '>='), sp))
-    pre_curve = np.vstack((pp, gmt.crv_cut(gmt.crv_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
-    le_curve = np.vstack((sp, gmt.crv_cut(sides[0], css, '<'), gmt.crv_cut(sides[1], csp, '<'), pp))
+    suc_curve = np.vstack((gmt.crv_ln_cut(gmt.crv_ln_cut(sides[0], css, '>'), _division_line(sides, divx), '>='), sp))
+    pre_curve = np.vstack((pp, gmt.crv_ln_cut(gmt.crv_ln_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
+    le_curve = np.vstack((sp, gmt.crv_ln_cut(sides[0], css, '<'), gmt.crv_ln_cut(sides[1], csp, '<'), pp))
     # Generate curves
     if cgenfunc == 'median':
         theta = - gmt.vectorangle(le_curve[0]-le_curve[1]) - np.pi/2 + 0.015
@@ -242,13 +243,13 @@ def le_slot(sides, divx, css, csp, cgenfunc, cgenarg, r) -> list:
         le_curve = gmt.crv_fit2p(cgenarg, suc_curve[-1], pre_curve[0], proxi_snap=True)
 
     if r>0:
-        return [[gmt.fillet_aprox(suc_curve, gmt.fillet_aprox(le_curve, pre_curve, r, [1, 1])[1], 5, 4)[1]]]
+        return [[gmt.crv_fillet(suc_curve, gmt.crv_fillet(le_curve, pre_curve, r, [1, 1])[1], 5, 4)[1]]]
     elif r==0:
-        return [[gmt.fillet_aprox(suc_curve, le_curve, 5, 2)[1], pre_curve]]
+        return [[gmt.crv_fillet(suc_curve, le_curve, 5, 2)[1], pre_curve]]
 
 
 # TRAILING EDGE GOEMETRIES
-def bare_te(sides, divx) -> list:
+def bare_te(sides: list, divx: list) -> list:
     """
     Leave the trailing edge as it is.
 
@@ -259,12 +260,12 @@ def bare_te(sides, divx) -> list:
         c ([ndarray]): the curve of the trailing edge in a list
 
     """
-    suc_curve = gmt.crv_cut(sides[0], _division_line(sides, divx), '<')
-    pre_curve = gmt.crv_cut(sides[1], _division_line(sides, divx), '<')
+    suc_curve = gmt.crv_ln_cut(sides[0], _division_line(sides, divx), '<')
+    pre_curve = gmt.crv_ln_cut(sides[1], _division_line(sides, divx), '<')
     return [[pre_curve, suc_curve]]
 
 
-def te_flap(sides, divx, cf, dtheta) -> list:
+def te_flap(sides: list, divx: list, cf: float, dtheta: float) -> list:
     """
     Generate a trailing edge flap
 
@@ -279,8 +280,8 @@ def te_flap(sides, divx, cf, dtheta) -> list:
     """
     cf = 100 - cf
     # Surfaces
-    suc_curve = gmt.crv_cut(sides[0], _division_line(sides, divx), '<')
-    pre_curve = np.flipud(gmt.crv_cut(sides[1], _division_line(sides, divx), '<'))
+    suc_curve = gmt.crv_ln_cut(sides[0], _division_line(sides, divx), '<')
+    pre_curve = np.flipud(gmt.crv_ln_cut(sides[1], _division_line(sides, divx), '<'))
     # Joint rotation center, and surface split points
     p0, ptan1, ptan2, i, j = gmt.crcl_tang_2crv(suc_curve, pre_curve, np.polyfit([cf - 10**-3, cf + 10**-3], [-10, 10], 1))[1:]
     # Surfaces
@@ -298,11 +299,11 @@ def te_flap(sides, divx, cf, dtheta) -> list:
     # Connect suction side flap to suction side
     sf_curve = gmt.arc_gen(sflap_curve[-1], ptan1, p0, int(np.ceil(np.degrees(dtheta)/20)))
     # Patch and return
-    suc_curve = gmt.patch(gmt.patch(sflap_curve, sf_curve), suc_curve)
+    suc_curve = gmt.crv_patch(gmt.crv_patch(sflap_curve, sf_curve), suc_curve)
     return [[pre_curve, pflap_curve, suc_curve]]
 
 
-def split_flap(sides, divx, cf, dtheta, ft) -> list:
+def split_flap(sides: list, divx: list, cf: float, dtheta: float, ft: float) -> list:
     """
     Generate a trailing edge split flap.
 
@@ -324,9 +325,9 @@ def split_flap(sides, divx, cf, dtheta, ft) -> list:
     # Surface split points
     pp = gmt.cbs_interp(sides[1], cf, 0)[0]
     # Surfaces
-    suc_curve = gmt.crv_cut(sides[0], _division_line(sides, divx), '<')
-    pre_curve = np.vstack((gmt.crv_cut(gmt.crv_cut(sides[1], _division_line(sides, divx), '<'), cf, '<'), pp))
-    pflap_curve = np.vstack((pp, gmt.crv_cut(sides[1], cf, '>')))
+    suc_curve = gmt.crv_ln_cut(sides[0], _division_line(sides, divx), '<')
+    pre_curve = np.vstack((gmt.crv_ln_cut(gmt.crv_ln_cut(sides[1], _division_line(sides, divx), '<'), cf, '<'), pp))
+    pflap_curve = np.vstack((pp, gmt.crv_ln_cut(sides[1], cf, '>')))
     # Moving flap
     pflap_curve = gmt.rotate(pflap_curve, pp, -dtheta)
     sflap_curve = gmt.rotate(med_curve, pp, -dtheta)   
@@ -337,7 +338,7 @@ def split_flap(sides, divx, cf, dtheta, ft) -> list:
     return [[pre_curve, pflap_curve, sflap_curve, med_curve, suc_curve]]
 
 
-def zap_flap(sides, divx, cf, dtheta, ft, dx, gap, r) -> list:
+def zap_flap(sides: list, divx: list, cf: float, dtheta: float, ft: float, dx: float, gap: float, r: float) -> list:
     """
     Generate a trailing edge slotted zap flap.
 
@@ -362,16 +363,16 @@ def zap_flap(sides, divx, cf, dtheta, ft, dx, gap, r) -> list:
     # Surface split point
     pp = gmt.cbs_interp(sides[1], cf, 0)[0]
     # Surfaces
-    suc_curve = gmt.crv_cut(sides[0], _division_line(sides, divx), '<')
-    pre_curve = np.vstack((gmt.crv_cut(gmt.crv_cut(sides[1], _division_line(sides, divx), '<'), cf, '<'), pp))
+    suc_curve = gmt.crv_ln_cut(sides[0], _division_line(sides, divx), '<')
+    pre_curve = np.vstack((gmt.crv_ln_cut(gmt.crv_ln_cut(sides[1], _division_line(sides, divx), '<'), cf, '<'), pp))
     # arc center and tangents
     dy = gmt.cbs_interp(med_curve, cf, 0)[0][1] - pp[1]
     p0 = - dy * (pre_curve[-2] - pp) / np.linalg.norm(pre_curve[-2] - pre_curve[-1]) + pre_curve[-1]
     mp = gmt.rotate(pp, p0, -np.pi/2.5)
     # Main body surfaces
     farc = gmt.arc_gen(mp, pp, p0, 4)
-    pte_curve = np.vstack((mp, gmt.crv_cut(med_curve, mp[0], '>')))
-    pte_curve = gmt.patch(farc, pte_curve)
+    pte_curve = np.vstack((mp, gmt.crv_ln_cut(med_curve, mp[0], '>')))
+    pte_curve = gmt.crv_patch(farc, pte_curve)
     # Translation
     tv = gmt.cbs_interp(sides[1], p0[0] + dx, 0)[0] - p0
     # Flap surfaces
@@ -388,16 +389,16 @@ def zap_flap(sides, divx, cf, dtheta, ft, dx, gap, r) -> list:
         return [[pre_curve, pte1_curve, pflap_curve, sflap_curve, pte2_curve, suc_curve]]
     elif gap > 0:
         sflap_curve = pte_curve
-        pflap_curve = np.vstack((pp, gmt.crv_cut(sides[1], pp[0], '>')))
+        pflap_curve = np.vstack((pp, gmt.crv_ln_cut(sides[1], pp[0], '>')))
         sflap_curve = gmt.translate(gmt.rotate(sflap_curve, p0, -dtheta), tv - np.array([0, gap]))
         pflap_curve = gmt.translate(gmt.rotate(pflap_curve, p0, -dtheta), tv - np.array([0, gap]))
         if r == 0:
             return [[pre_curve, pte_curve, suc_curve], [np.flipud(sflap_curve), pflap_curve]]
         elif r > 0:
-            return [[pre_curve, pte_curve, suc_curve], [gmt.fillet_aprox(sflap_curve, pflap_curve, r, 4, [0, 0])[1]]]
+            return [[pre_curve, pte_curve, suc_curve], [gmt.crv_fillet(sflap_curve, pflap_curve, r, 4, [0, 0])[1]]]
 
 
-def te_slot(sides, divx, cfs, cfp, cgenfunc, cgenarg, r) -> list:
+def te_slot(sides: list, divx: list, cfs: float, cfp: float, cgenfunc: str, cgenarg: Union[Callable,list,np.ndarray,float], r: float) -> list:
     """
     Cut the trailing edge short, so the resulting geometry can be used in combination with a flap.
 
@@ -421,8 +422,8 @@ def te_slot(sides, divx, cfs, cfp, cgenfunc, cgenarg, r) -> list:
     sp = gmt.cbs_interp(sides[0], cfs, 0)[0]
     pp = gmt.cbs_interp(sides[1], cfp, 0)[0]
     # Surfaces
-    suc_curve = np.vstack((sp, gmt.crv_cut(gmt.crv_cut(sides[0], _division_line(sides, divx), '<'), cfs, '<')))
-    pre_curve = np.vstack((gmt.crv_cut(gmt.crv_cut(sides[1], _division_line(sides, divx), '<'), cfp, '<'), pp))
+    suc_curve = np.vstack((sp, gmt.crv_ln_cut(gmt.crv_ln_cut(sides[0], _division_line(sides, divx), '<'), cfs, '<')))
+    pre_curve = np.vstack((gmt.crv_ln_cut(gmt.crv_ln_cut(sides[1], _division_line(sides, divx), '<'), cfp, '<'), pp))
 
     # Generate trailing edge curve
     if cgenfunc == 'marriage':
@@ -441,7 +442,7 @@ def te_slot(sides, divx, cfs, cfp, cgenfunc, cgenarg, r) -> list:
 
     # Fillet leading edge curve and presure side
     if r>0:
-        return [[gmt.fillet_aprox(pre_curve, te_curve, r, [1, 1])[1], suc_curve]]
+        return [[gmt.crv_fillet(pre_curve, te_curve, r, [1, 1])[1], suc_curve]]
     elif r==0:
         if gmt.comcheck(pre_curve[-1], te_curve[-1], 0.01):
             te_curve = np.flipud(te_curve)
@@ -449,7 +450,7 @@ def te_slot(sides, divx, cfs, cfp, cgenfunc, cgenarg, r) -> list:
 
 
 # ELEMENT GENERATION
-def slat(sides, css, csp, cgenfunc, cgenarg, r, mirror = False) -> list:
+def slat(sides: list, css: float, csp: float, cgenfunc: str, cgenarg: Union[Callable,list,np.ndarray,float], r: float, mirror: bool = False) -> list:
     """
     Generate a slat so the resulting geometry can be used in combination with a leading edge slot.
 
@@ -472,7 +473,7 @@ def slat(sides, css, csp, cgenfunc, cgenarg, r, mirror = False) -> list:
     sp = gmt.cbs_interp(sides[0], css, 0)[0]
     pp = gmt.cbs_interp(sides[1], csp, 0)[0]
     # Surfaces
-    suc_curve = np.vstack((sp, gmt.crv_cut(sides[0], css, '<'), gmt.crv_cut(sides[1], csp, '<'), pp))
+    suc_curve = np.vstack((sp, gmt.crv_ln_cut(sides[0], css, '<'), gmt.crv_ln_cut(sides[1], csp, '<'), pp))
     # Generate curve
     if cgenfunc == 'median':
         theta = - gmt.vectorangle(suc_curve[0]-suc_curve[1]) - np.pi/2 + 0.015
@@ -497,14 +498,14 @@ def slat(sides, css, csp, cgenfunc, cgenarg, r, mirror = False) -> list:
 
     # Fillet suction edge curve and pressure side
     if r>0:
-        return [[gmt.fillet_aprox(suc_curve, pre_curve, r, [1, 1], [-1])[1]]]
+        return [[gmt.crv_fillet(suc_curve, pre_curve, r, [1, 1], [-1])[1]]]
     elif r==0:
         if gmt.comcheck(pre_curve[-1], suc_curve[-1], 0.01):
             pre_curve = np.flipud(pre_curve)
         return [[suc_curve, pre_curve]]
 
 
-def flap(sides, cfs, cfp, cgenfunc, cgenarg, r) -> list:
+def flap(sides: list, cfs: float, cfp: float, cgenfunc: str, cgenarg: Union[Callable,list,np.ndarray,float], r: float) -> list:
     """
     Generate a flap, so the resulting geometry can be used in combination with a trailing edge slot.
 
@@ -529,8 +530,8 @@ def flap(sides, cfs, cfp, cgenfunc, cgenarg, r) -> list:
     sp = gmt.cbs_interp(sides[0], cfs, 0)[0]
     pp = gmt.cbs_interp(sides[1], cfp, 0)[0]
     # Surfaces
-    suc_curve = np.vstack((gmt.crv_cut(sides[0], cfs, '>'), sp))
-    pre_curve = np.vstack((pp, gmt.crv_cut(sides[1], cfp, '>')))
+    suc_curve = np.vstack((gmt.crv_ln_cut(sides[0], cfs, '>'), sp))
+    pre_curve = np.vstack((pp, gmt.crv_ln_cut(sides[1], cfp, '>')))
 
     if cgenfunc == 'marriage':
         le_curve = crvgen.marriage(sides[0], sides[1], cfs, cfp, cfp - cgenarg[0], n, cgenarg[1])
@@ -540,7 +541,7 @@ def flap(sides, cfs, cfp, cgenfunc, cgenarg, r) -> list:
         le_curve = crvgen.arc_p([pre_curve[0], suc_curve[-1]], crvp, n)
 
     elif cgenfunc == 'arc_tang':
-        tan_points = np.vstack((sp, gmt.crv_cut(sides[0], cfs, '<')[0], pre_curve[0]))
+        tan_points = np.vstack((sp, gmt.crv_ln_cut(sides[0], cfs, '<')[0], pre_curve[0]))
         le_curve = crvgen.arc_tang(tan_points, n)
     
     elif cgenfunc == 'input':
@@ -548,6 +549,6 @@ def flap(sides, cfs, cfp, cgenfunc, cgenarg, r) -> list:
 
     # Fillet leading edge curve and presure side
     if r>0:
-        return [[gmt.patch(suc_curve, gmt.fillet_aprox(le_curve, pre_curve, r, [1, 1])[1], [-1])]]
+        return [[gmt.crv_patch(suc_curve, gmt.crv_fillet(le_curve, pre_curve, r, [1, 1])[1], [-1])]]
     elif r==0:
-        return [[gmt.patch(suc_curve, le_curve), pre_curve]]
+        return [[gmt.crv_patch(suc_curve, le_curve), pre_curve]]

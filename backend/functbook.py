@@ -4,40 +4,40 @@
 #---------------------------------------------------------------------------------
 
 import numpy as np
-from scipy.interpolate import PchipInterpolator
+import geometrics as gmt
+from typing import Callable, Union
 
 # Function builders
-def gen_pchip(y, x = None):
+def gen_linterp(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray] = None) -> Callable[[Union[list,tuple,np.ndarray]],Union[list,tuple,np.ndarray]]:
     """
-    Generate a function by interpolating points with pchip method.
+    Generate a function by interpolating points linearly.
 
     Args:
-        y (array-like): [y0, y1, ..., yn] vector containing all the y values
-        x (array-like): [x0, x1, ..., xn] vector containing all the x values, if None the x values will be evenly spaced across [-1,1]
+        y: [y0, y1, ..., yn] vector containing all the y values
+        x: [x0, x1, ..., xn] vector containing all the x values, if None the x values will be evenly spaced across [-1,1]
 
     Returns:
-        f (function): function of x
+        function of x
 
     """
     y = np.array(y)
     if x == None:
         x = np.linspace(-1,1, np.shape(y)[0])
-    pch = PchipInterpolator(x, y)
-    funct = lambda xs: np.array([*pch(xs)])
+    funct = lambda xs: np.interp(xs, x, y)
     return funct
 
 
-def gen_poly(y, x = None, deg = None):
+def gen_poly(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray] = None, deg: int = None) -> Callable[[Union[list,tuple,np.ndarray]],Union[list,tuple,np.ndarray]]:
     """
     Generate a function by fitting a polynomial onto points.
 
     Args:
-        y (array-like): [y0, y1, ..., yn] vector containing all the y values
-        x (array-like): [x0, x1, ..., xn] vector containing all the x values, if None the x values will be evenly spaced across [-1,1]
-        deg (int): The degree of the polynomial, if None the greatest possible degree is picked
+        y: [y0, y1, ..., yn] vector containing all the y values
+        x: [x0, x1, ..., xn] vector containing all the x values, if None the x values will be evenly spaced across [-1,1]
+        deg: The degree of the polynomial, if None the greatest possible degree is picked
 
     Returns:
-        f (function): function of x
+        function of x
 
     """
     y = np.array(y)
@@ -67,4 +67,27 @@ def gen_poly(y, x = None, deg = None):
     return funct
 
 
+def gen_ray_crit_func(angtol: float, maxdist: float, mindist: float = 0) -> Callable[[Union[list,tuple,np.ndarray], Union[list,tuple,np.ndarray], Union[list,tuple,np.ndarray]],bool]:
+    """
+    Generate a basic ray trace criterion function for opposing_faces functions.
+
+    Arg:
+        angtol: the maximum difference of the angle from vertical, that ecaluates the criterion function
+        maxdist: the maximum between ray casting point and traced point, that evaluates the criterion function
+        mindist: the minimum between ray casting point and traced point, that evaluates the criterion function
+    
+    Returns:
+        criterion function
+    
+    """
+    def crit_func(tcv, p, ray):
+        # angle criterion
+        abool = abs(abs(gmt.vectorangle(tcv, ray)) - np.pi/2) <= angtol
+        # distance criterion
+        dbool = mindist <= np.linalg.norm(ray[0] - p) <= maxdist
+        return abool and dbool
+    return crit_func
+
+
 # Function book
+
