@@ -8,7 +8,7 @@ import geometrics as gmt
 from typing import Callable, Union
 
 # Function builders
-def gen_linterp(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray] = None) -> Callable[[Union[list,tuple,np.ndarray]],Union[list,tuple,np.ndarray]]:
+def gen_linterp(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray] = None) -> Callable[[np.ndarray],np.ndarray]:
     """
     Generate a function by interpolating points linearly.
 
@@ -27,7 +27,7 @@ def gen_linterp(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray]
     return funct
 
 
-def gen_poly(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray] = None, deg: int = None) -> Callable[[Union[list,tuple,np.ndarray]],Union[list,tuple,np.ndarray]]:
+def gen_poly(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray] = None, deg: int = None) -> Callable[[np.ndarray],np.ndarray]:
     """
     Generate a function by fitting a polynomial onto points.
 
@@ -67,7 +67,7 @@ def gen_poly(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray] = 
     return funct
 
 
-def gen_ray_crit_func(angtol: float, maxdist: float, mindist: float = 0) -> Callable[[Union[list,tuple,np.ndarray], Union[list,tuple,np.ndarray], Union[list,tuple,np.ndarray]],bool]:
+def gen_ray_crit_func(angtol: float, maxdist: float, mindist: float = 0) -> Callable[[np.ndarray, np.ndarray, np.ndarray],bool]:
     """
     Generate a basic ray trace criterion function for opposing_faces functions.
 
@@ -82,7 +82,7 @@ def gen_ray_crit_func(angtol: float, maxdist: float, mindist: float = 0) -> Call
     """
     def crit_func(tcv, p, ray):
         # angle criterion
-        abool = abs(abs(gmt.vectorangle(tcv, ray)) - np.pi/2) <= angtol
+        abool = abs(abs(gmt.vectorangle(tcv[1] - tcv[0], ray[1] - ray[0])) - np.pi/2) <= angtol
         # distance criterion
         dbool = mindist <= np.linalg.norm(ray[0] - p) <= maxdist
         return abool and dbool

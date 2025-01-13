@@ -25,15 +25,15 @@ def _varcam_intersect(pflap_curve, pre_curve):
     Find the intersection between the pressure sides of the flap and the main body.
     """
     # First check if intersection is beyond both curves
-    lf1 = np.polyfit(pflap_curve[-2:,0], pflap_curve[-2:,1], 1)
-    lf2 = np.polyfit(pre_curve[0:2,0], pre_curve[0:2,1], 1)
+    lf1 = gmt.lfp(pflap_curve[-2], pflap_curve[-1])
+    lf2 = gmt.lfp(pre_curve[0], pre_curve[1])
     pint = gmt.lnr_inters(lf1, lf2)
     if (pint[0] < pre_curve[0,0]) and  (pint[0] > pflap_curve[-1,0]):
         return [pint, np.shape(pflap_curve)[0], 0]
     
     # Else, check if intersection outside LE curve and inside BS curve
     for i in range(0, np.shape(pre_curve)[0]-1):
-        lf2 = np.polyfit(pre_curve[i:i+2,0], pre_curve[i:i+2,1], 1)
+        lf2 = gmt.lfp(pre_curve[i], pre_curve[i+1])
         pint = gmt.lnr_inters(lf1, lf2)
         if (pint[0] > pflap_curve[-1,0]) and ((pint[0] > pre_curve[i,0]) == (pint[0] < pre_curve[i+1,0])):
             return [pint, np.shape(pflap_curve)[0], i+1]
@@ -44,9 +44,9 @@ def _varcam_intersect(pflap_curve, pre_curve):
         return [int_data[1], int_data[2]+1, int_data[3]+1]
     
     # Lastly try to find last intersection inside LE and outside BS curve
-    lf2 = np.polyfit(pre_curve[0:2,0], pre_curve[0:2,1], 1)
+    lf2 = gmt.lfp(pre_curve[0], pre_curve[1])
     for i in range(np.shape(pflap_curve)[0]-2, -1, -1):
-        lf1 = np.polyfit(pflap_curve[i:i+2 ,0], pflap_curve[i:i+2 ,1], 1)
+        lf1 = gmt.lfp(pflap_curve[i], pflap_curve[i+1])
         pint = gmt.lnr_inters(lf1, lf2)
         if (pint[0] < pre_curve[0,0]) and ((pint[0] > pflap_curve[i,0]) == (pint[0] < pflap_curve[i+1,0])):
             return [pint, i, 0]
@@ -56,7 +56,7 @@ def _varcam_intersect(pflap_curve, pre_curve):
 
 
 def _division_line(sides, divx):
-    return np.polyfit([divx[0], divx[1]], [gmt.cbs_interp(sides[0], divx[0], 0)[0][1], gmt.cbs_interp(sides[1], divx[1], 0)[0][1]], 1)
+    return gmt.lfp([divx[0], gmt.cbs_interp(sides[0], divx[0], 0)[0][1]], [divx[1], gmt.cbs_interp(sides[1], divx[1], 0)[0][1]]) 
 
 
 # HIGH LIFT DEVICES
@@ -102,8 +102,8 @@ def le_flap1(sides: list, divx: list, css: float, csp: float, dtheta: float) -> 
     # Move flap
     flap_curve = gmt.rotate(flap_curve, pp, dtheta)
     # Connect flap to suction side
-    lf1 = np.polyfit([flap_curve[0,0], flap_curve[1,0]], [flap_curve[0,1], flap_curve[1,1]], 1)
-    lf2 = np.polyfit([suc_curve[-1,0], suc_curve[-2,0]], [suc_curve[-1,1], suc_curve[-2,1]], 1)
+    lf1 = gmt.lfp(flap_curve[0], flap_curve[1])
+    lf2 = gmt.lfp(suc_curve[-1], suc_curve[-2])
     pint = gmt.lnr_inters(lf1, lf2)
     sf_curve = gmt.bezier([suc_curve[-1], pint, flap_curve[0]])(np.linspace(0,1,5))
     # Patch and return
@@ -283,7 +283,7 @@ def te_flap(sides: list, divx: list, cf: float, dtheta: float) -> list:
     suc_curve = gmt.crv_ln_cut(sides[0], _division_line(sides, divx), '<')
     pre_curve = np.flipud(gmt.crv_ln_cut(sides[1], _division_line(sides, divx), '<'))
     # Joint rotation center, and surface split points
-    p0, ptan1, ptan2, i, j = gmt.crcl_tang_2crv(suc_curve, pre_curve, np.polyfit([cf - 10**-3, cf + 10**-3], [-10, 10], 1))[1:]
+    p0, ptan1, ptan2, i, j = gmt.crcl_tang_2crv(suc_curve, pre_curve, gmt.lfp([cf - 10**-3, -10], [cf + 10**-3, 10]))[1:]
     # Surfaces
     sflap_curve = np.vstack((suc_curve[0:i+1], ptan1))
     pflap_curve = np.flipud(np.vstack((pre_curve[0:j+1], ptan2)))

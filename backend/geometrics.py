@@ -20,7 +20,7 @@ _quadict = {1: [1,1], 2: [-1,1], 3: [-1,-1], 4:[1,-1]}
 _opdict = {'<': lambda x,y: x<y, '>': lambda x,y: x>y, '<=': lambda x,y: x<=y, '>=': lambda x,y: x>=y}
 
 
-# FUNCTION SOLVING
+# GENERAL
 def bisect_solver(funct: Callable[[float], float], y: float, seg: Union[list,tuple,np.ndarray], tol: float) -> float:
     """
     Solve a function with the bisection method.
@@ -51,6 +51,23 @@ def bisect_solver(funct: Callable[[float], float], y: float, seg: Union[list,tup
             raise Exception('Error: Segment is fucked')
 
     return seg[0] - (seg[1]-seg[0]) * y1 / (y2-y1)
+
+
+def lfp(p1, p2):
+    """
+    Get the polynomial factors of the line passign through two points.
+
+    Args:
+        p1: [x0, y0] the matrix containing the point 1 coordinates
+        p2: [x0, y0] the matrix containing the point 2 coordinates
+
+    Returns:
+        [a1, a0] the line poly factors
+
+    """
+    x1, y1 = p1
+    x2, y2 = p2
+    return np.array([(y2 - y1) / (x2 - x1), (y1 * x2 - y2 * x1) / (x2 - x1)])
 
 
 # BASIC MANIPULATION
@@ -429,8 +446,8 @@ def crv_inters(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray
     for i in range(0, np.shape(c1)[0]-1):
         for j in range(0, np.shape(c2)[0]-1):
             # Find intersection
-            lf1 = np.polyfit(c1[i:i+2,0], c1[i:i+2,1], 1)
-            lf2 = np.polyfit(c2[j:j+2,0], c2[j:j+2,1], 1)
+            lf1 = lfp(c1[i], c1[i+1])
+            lf2 = lfp(c2[j], c2[j+1])
             p0 = lnr_inters(lf1, lf2)
 
             # Check intesection
@@ -490,26 +507,33 @@ def raytrace(c: Union[list,tuple,np.ndarray], ray: Union[list,tuple,np.ndarray])
 
     """
     c, ray = np.array(c), np.array(ray)
-    rf = np.polyfit(ray[:,0], ray[:,1], 1)
+    # Get curve segments that the ray line passes through
+    rf = lfp(ray[0], ray[1])
     yr = np.polyval(rf, c[:,0])
     i = c[:,1] > yr
     i = np.nonzero(i[0:-1] != i[1:])[0]
-    an = (c[i+1,1] - c[i,1]) / (c[i+1,0] - c[i,0])
-    bn = (c[i,1]*c[i+1,0] - c[i+1,1]*c[i,0]) / (c[i+1,0] - c[i,0])
-    x = (bn - rf[1]) / (rf[0] - an)
-    y = np.polyval(rf, x)
-    points = np.transpose([x,y])
-    sortindx = np.argsort(points[:,0])
-    xray = ray[:,0]
-    if ray[0,0] > ray[1,0]:
-        sortindx = np.flip(sortindx)
-        xray = np.flipud(xray)
-
-    points = points[sortindx]
-    valindx = np.nonzero(np.logical_and(points[:,0] > xray[0], points[:,0] < xray[1]))[0]
-    i = i[sortindx][valindx]
-    points = points[valindx]
-    return [i, points]
+    if len(i) > 0:
+        # Get solutions segments
+        an = (c[i+1,1] - c[i,1]) / (c[i+1,0] - c[i,0])
+        bn = (c[i,1] * c[i+1,0] - c[i+1,1] * c[i,0]) / (c[i+1,0] - c[i,0])
+        x = (bn - rf[1]) / (rf[0] - an)
+        # Get ray line traces (intersections with curve)
+        y = np.polyval(rf, x)
+        points = np.transpose([x,y])
+        # Sort them by closest to ray cast point to furthest
+        sortindx = np.argsort(points[:,0])
+        xray = ray[:,0]
+        if ray[0,0] > ray[1,0]:
+            sortindx = np.flip(sortindx)
+            xray = np.flipud(xray)
+        points = points[sortindx]
+        # Keep only traces that are within the ray segment 
+        valindx = np.nonzero(np.logical_and(points[:,0] > xray[0], points[:,0] < xray[1]))[0]
+        i = i[sortindx][valindx]
+        points = points[valindx]
+        return [i, points]
+    else:
+        return [[],[]]
 
 
 # CIRCLES
@@ -655,8 +679,8 @@ def crcl_tang_segrlim(seg1: Union[list,tuple,np.ndarray], seg2: Union[list,tuple
     
     """
     seg1, seg2 = np.array(seg1), np.array(seg2)
-    lf1 = np.polyfit(seg1[:,0], seg1[:,1], 1)
-    lf2 =  np.polyfit(seg2[:,0], seg2[:,1], 1)
+    lf1 = lfp(seg1[0], seg1[1])
+    lf2 =  lfp(seg2[0], seg2[1])
     p0 = lnr_inters(lf1, lf2)
     insidebool1 = min(seg1[:,0]) <= p0[0] <= max(seg1[:,0])      # Is intersection point inside segment?
     insidebool2 = min(seg2[:,0]) <= p0[0] <= max(seg2[:,0])      # Is intersection point inside segment?
@@ -668,7 +692,7 @@ def crcl_tang_segrlim(seg1: Union[list,tuple,np.ndarray], seg2: Union[list,tuple
 
     bisectvct = bisector_vct(seg1[1]-seg1[0], seg2[1]-seg2[0])
     theta = vectorangle(bisectvct)
-    blf = np.polyfit([p0[0], bisectvct[0] + p0[0]], [p0[1], bisectvct[1] + p0[1]], 1)
+    blf = lfp(p0, bisectvct + p0)
     p11 = lnr_inters(vertical_lnr(lf1, seg1[0]), blf)
     p12 = lnr_inters(vertical_lnr(lf1, seg1[1]), blf)
     p21 = lnr_inters(vertical_lnr(lf2, seg2[0]), blf)
@@ -748,7 +772,7 @@ def crcl_tang_lnpp(lf: Union[list,tuple,np.ndarray], p1: Union[list,tuple,np.nda
     lf1 = np.zeros(2)
     lf1[0] = -1/lf[0]
     lf1[1] = p1[1] - lf1[0] * p1[0]
-    lf2 = np.polyfit([p1[0], p2[0]], [p1[1], p2[1]], 1)
+    lf2 = lfp(p1, p2)
     lf2[0] = -1/lf2[0]
     lf2[1] = (p1[1] + p2[1]) / 2 - lf2[0] * (p1[0] + p2[0]) / 2
     # Return center
@@ -789,8 +813,8 @@ def crcl_tang_2crv(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.nda
     for i in range(0, np.shape(c1)[0]-1):
         for j in range(0, np.shape(c2)[0]-1):
 
-            lf1 = np.polyfit(c1[i:i+2,0], c1[i:i+2,1], 1)
-            lf2 = np.polyfit(c2[j:j+2,0], c2[j:j+2,1], 1)
+            lf1 = lfp(c1[i], c1[i+1])
+            lf2 = lfp(c2[j], c2[j+1])
             quadrnt = quadrant(c1[i+1] - c1[i], c2[j+1] - c2[j])
 
             p0, ptan1, ptan2 = funct(lf1, lf2, arg, quadrnt)
@@ -1041,8 +1065,8 @@ def smooth_fillet_crcl(c: Union[list,tuple,np.ndarray], minang: float, c_factor:
         ptan1 = c[i] + fillen * (c[i-1] - c[i]) / l1
         ptan2 = c[i] + fillen * (c[i+1] - c[i]) / l2
         # Get center of tangent circle
-        lf1 = np.polyfit([c[i,0], ptan1[0]], [c[i,1], ptan1[1]],1)
-        lf2 = np.polyfit([c[i,0], ptan2[0]], [c[i,1], ptan2[1]],1)
+        lf1 = lfp(c[i], ptan1)
+        lf2 = lfp(c[i], ptan2)
         lf1 = vertical_lnr(lf1, ptan1)
         lf2 = vertical_lnr(lf2, ptan2)
         p0 = lnr_inters(lf1, lf2)
@@ -1520,8 +1544,8 @@ def DEPRECATED_crv_fillet(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple
     for i in range(0, np.shape(c1)[0]-1):
         for j in range(0, np.shape(c2)[0]-1):
 
-            lf1 = np.polyfit(c1[i:i+2,0], c1[i:i+2,1], 1)
-            lf2 = np.polyfit(c2[j:j+2,0], c2[j:j+2,1], 1)
+            lf1 = lfp(c1[i], c1[i+1])
+            lf2 = lfp(c2[j], c2[j+1])
             rs = sang1 * np.sign(vectorangle(c1[i+1] - c1[i], c2[j+1] - c2[j]))
             quadrnt = quadrant(c1[i+1] - c1[i], c2[j+1] - c2[j], reflex=rs<0)
 
@@ -1685,8 +1709,8 @@ def crv_fillet(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray
     
     # Get tangent circle
     quadrnt = quadrant(c1[i+1] - c1[i], c2[j+1] - c2[j])
-    lf1 = np.polyfit(c1[i:i+2,0], c1[i:i+2,1], 1)
-    lf2 = np.polyfit(c2[j:j+2,0], c2[j:j+2,1], 1)
+    lf1 = lfp(c1[i], c1[i+1])
+    lf2 = lfp(c2[j], c2[j+1])
     p0, ptan1, ptan2 = crcl_tang_2lnr(lf1, lf2, r, quadrnt)
 
     # Delete points before tangency

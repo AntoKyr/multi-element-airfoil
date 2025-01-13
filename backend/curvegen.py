@@ -31,7 +31,7 @@ def median(c: Union[list,tuple,np.ndarray], theta: float, weight_fun: Callable[[
     else:
         crange = [min(c[:,0]), max(c[:,0])]
 
-    lf = np.polyfit([c[0,0], c[-1,0]], [c[0,1], c[-1,1]], 1)                                           # Calculate line factors
+    lf = gmt.lfp(c[0], c[-1])                                           # Calculate line factors
     x = c[:,0]
     ly = np.polyval(lf, x)                                                                             # Place line points
     wx = 2 * (x - (crange[1] + crange[0])/2) / abs(crange[1] - crange[0])                              # Map x values to the range [-1,1]
@@ -72,7 +72,7 @@ def arc_tang(c: Union[list,tuple,np.ndarray], n: int) -> np.ndarray:
         [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the generated curve
 
     """
-    lf = np.polyfit([c[0,0], c[1,0]], [c[0,1], c[1,1]], 1)
+    lf = gmt.lfp(c[0], c[1])
     p0 = gmt.crcl_tang_lnpp(lf, c[0], c[-1])
     return gmt.arc_gen(c[0], c[-1], p0, n)
 

@@ -5,6 +5,7 @@
 
 import numpy as np
 import geometrics as gmt
+from typing import Union, Callable
 
 # MESH DOMAIN CLASS
 class MeshDomain(gmt.GeoShape):
@@ -24,7 +25,7 @@ class MeshDomain(gmt.GeoShape):
 
     """
 
-    def __init__(self, points, squencs, shapes, spacing, nodes, mesh_types):
+    def __init__(self, points: np.ndarray, squencs: list, shapes: list, spacing: list, nodes: list, mesh_types: list):
         super(MeshDomain, self).__init__(points, squencs, shapes)
         self.nodes = nodes
         self.spacing = spacing
@@ -56,21 +57,21 @@ class MeshDomain(gmt.GeoShape):
 
 
 # SUPPORTING FUNCTIONS
-def _ile(bodyc):
+def _ile(bodyc: Union[list,tuple,np.ndarray]) -> int:
     """
     Return the index of the leading edge point of the foil curve.
     """
     return np.argmax(np.hypot(bodyc[:,0] - bodyc[0,0], bodyc[:,1] - bodyc[0,1]))
 
 
-def _chord(bodyc):
+def _chord(bodyc: Union[list,tuple,np.ndarray]) -> float:
     """
     Return the chord of the foil.
     """
     return np.sum((bodyc[_ile(bodyc)] - bodyc[0])**2)**0.5
 
 
-def _lec(bodyc):
+def _lec(bodyc: Union[list,tuple,np.ndarray]) -> list:
     """
     Return the circle of the leading edge.
     """
@@ -100,10 +101,10 @@ class FacePair:
         self.face1, self.face2 = face2, face1
     
     def __str__(self):
-        return str(self.face1) + '\n' + str(self.face2)
+        return 'Face 1: ' + str(self.face1) + '\nFace 2: ' + str(self.face2)
 
-
-def opposing_faces(c1, c2, crit_func):
+from matplotlib import pyplot as plt
+def opposing_faces(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray], crit_func: Callable[[np.ndarray, np.ndarray, np.ndarray], bool], los_check: bool = False) -> FacePair:
     """
     Find the parts of two geometrics curves which are opposing one another by casting rays from the first curve (c1) to the second (c2). Also apply certain criteria.
 
@@ -111,23 +112,25 @@ def opposing_faces(c1, c2, crit_func):
         c1: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 1
         c2: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 2
         crit_func: criterion function for rays to be valid
+        los_check: line of sight check, if True, checks if the ray intersects the first curve before the second, meaning its out of line of sight of the second and is discarded, not needed for simple curves
     
     Returns:
         list containing two lists, (one for each curve) which contain the indexes of the corresponding opposing faces
         
     """
     c1, c2 = np.array(c1), np.array(c2)
-    # Get the closest points to figure out the correct curve orientation.
+    # Get the closest points to figure out the correct ray casting orientation.
     dists = gmt.crv_dist(c1, c2)
     pi1 = np.argmin(np.min(dists, axis=1))
     pi2 = np.argmin(np.min(dists, axis=0))
     lfac = np.max(dists)
-    j1 = pi1
     # In case of curve endpoint
-    if j1 == 0:
-        j1 += 1
+    if pi1 == 0:
+        jp = 1
+    else:
+        jp = -1
     # Get curve orientation sign
-    s1 = - np.sign(gmt.vectorangle(c1[j1-1] - c1[j1], c2[pi2] - c1[j1]))
+    s1 = np.sign(jp) * np.sign(gmt.vectorangle(c1[pi1 + jp] - c1[pi1], c2[pi2] - c1[pi1]))
     # Generate rays
     ray1 = lfac * s1 * gmt.parallcrv(c1)
     # Cast and trace rays
@@ -136,23 +139,33 @@ def opposing_faces(c1, c2, crit_func):
     for i in range(len(ray1)):
         ray = np.array([c1[i], ray1[i] + c1[i]])
         tris, trps = gmt.raytrace(c2, ray)
-
         if len(tris) > 0:
             tri, trp = tris[0], trps[0]
-            if crit_func(c2[tri:tri+2], trp, ray):            # apply ray criterion
+            # Check for self intersections
+            los = True
+            if los_check:
+                losis = gmt.raytrace(c1, ray)[0]
+                if len(losis) > 0:
+                    if (losis[0] == i) or (losis[0] - 1 == i):
+                        if len(losis) > 1:
+                            los = False
+                    else:
+                        los = False
+        
+            if crit_func(c2[tri:tri+2], trp, ray) and los:            # apply ray criterion
                 if not fbool:                      # new casting and traced face borders
                     cfb, tfb = [i, 0], [tri, 0]
                     fbool = True
                 cfb[1] = i
-                tfb[1] = tri + 1
+                tfb[1] = tri
                 continue
 
         if fbool:                                  # save face pair into list
             face1 = list(range(cfb[0], cfb[1]+1))
-            if tfb[0] > tfb[1]:                    # make sure orientation is correct
-                face2 = list(range(tfb[0]+1, tfb[1]))
+            if tfb[0] > tfb[1]:
+                face2 = list(range(tfb[0]+1, tfb[1]-1, -1))
             else:
-                face2 = list(range(tfb[0], tfb[1]+1))
+                face2 = list(range(tfb[0], tfb[1]+2))
             face_pair_list.append(FacePair(face1, face2))
             fbool = False
 
@@ -161,13 +174,13 @@ def opposing_faces(c1, c2, crit_func):
         if tfb[0] > tfb[1]:
             face2 = list(range(tfb[0]+1, tfb[1]-1, -1))
         else:
-            face2 = list(range(tfb[0], tfb[1]+1))
-        face_pair_list.append(FacePair(face1, face2))        
+            face2 = list(range(tfb[0], tfb[1]+2))
+        face_pair_list.append(FacePair(face1, face2))
 
     return face_pair_list
 
 
-def face_merger(face_pair_list: list, minsim_all = 0, minsim_1 = 0, minsim_2 = 0):
+def face_merger(face_pair_list: list, minsim_all: float = 0, minsim_1: float = 0, minsim_2: float = 0) -> list:
     """
     Merges faces from a list, according to their similarity. All similarity criteria must be passed for a merge to happen.
 
@@ -229,9 +242,25 @@ def face_merger(face_pair_list: list, minsim_all = 0, minsim_1 = 0, minsim_2 = 0
     return face_pair_list
 
 
+def crossing_boundaries(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray], fp: FacePair) -> bool:
+    """
+    Check if the boundaries of a face pair cross.
 
+    Args:
+        c1: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 1
+        c2: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 2
+        fp: FacePair to be checked
+    
+    Returns:
+        True if the boundaries cross
 
-
+    """
+    p11, p12 = c1[fp.face1[0]], c1[fp.face1[-1]]
+    p21, p22 = c2[fp.face2[0]], c2[fp.face2[-1]]
+    p0 = gmt.lnr_inters(gmt.lfp(p11, p21), gmt.lfp(p12, p22))
+    b1 = (p11[0] < p0[0] < p21[0]) or (p11[0] > p0[0] > p21[0])
+    b2 = (p12[0] < p0[0] < p22[0]) or (p12[0] > p0[0] > p22[0])
+    return b1 and b2
 
 
 # GENERAL DOMAIN FUNCTIONS

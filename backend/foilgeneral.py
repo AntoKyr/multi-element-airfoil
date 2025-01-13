@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 from matplotlib.path import Path
 import geometrics as gmt
 from geomdl import fitting
-from typing import Callable
+from typing import Union, Callable
 
 # AIRFOIL CLASS
 class Airfoil(gmt.GeoShape):
@@ -274,12 +274,12 @@ def sides(afl: Airfoil) -> list:
     return [suctside, presside]
 
 
-def sides_balanced(afl: Airfoil, x = np.linspace(1, 99, 98)) -> list:
+def sides_balanced(afl: Airfoil, x: Union[list,tuple,np.ndarray] = np.linspace(1, 99, 98)) -> list:
     """
     Interpolate the airfoil's curve with spline at requested x coordinates and return the resulting sides.
 
     Args:
-        x (array-like): the x coordinate of the ordinates
+        x: the x coordinate of the ordinates
     
     Returns:
         a list containing:
