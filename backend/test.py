@@ -105,36 +105,35 @@ if False:
     multivartest(namearr, hld_test)
 
 
+if False:
+    plt.axis([-100, 100, -100, 100])
 
-plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
 
-curvs = draw_curves()
+    c1,c2 = curvs
 
-c1,c2 = curvs
+    dist = np.min(gmt.crv_dist(c1, c2))
+    critfunc = functbook.gen_ray_crit_func(np.pi/4, 5*dist)
 
-dist = np.min(gmt.crv_dist(c1, c2))
-critfunc = functbook.gen_ray_crit_func(np.pi/4, 5*dist)
+    facepairlist = mdd.opposing_faces(c1, c2, critfunc, los_check=True)
 
-facepairlist = mdd.opposing_faces(c1, c2, critfunc, los_check=True)
+    plt.plot(c1[:,0], c1[:,1],'-')
+    plt.plot(c2[:,0], c2[:,1],'-')
+    plt.plot(c1[:,0], c1[:,1],'.')
+    plt.plot(c2[:,0], c2[:,1],'.')
 
-plt.plot(c1[:,0], c1[:,1],'-')
-plt.plot(c2[:,0], c2[:,1],'-')
-plt.plot(c1[:,0], c1[:,1],'.')
-plt.plot(c2[:,0], c2[:,1],'.')
+    for facepair in facepairlist:
+        face1 = facepair.face1
+        face2 = facepair.face2
+        plt.plot(c1[face1,0], c1[face1,1], '*c')
+        plt.plot(c2[face2,0], c2[face2,1], '*c')
+        plt.plot([c1[face1[0], 0], c2[face2[0], 0]], [c1[face1[0], 1], c2[face2[0], 1]], 'c')
+        plt.plot([c1[face1[-1], 0], c2[face2[-1], 0]], [c1[face1[-1], 1], c2[face2[-1], 1]], 'c')
 
-for facepair in facepairlist:
-    face1 = facepair.face1
-    face2 = facepair.face2
-    plt.plot(c1[face1,0], c1[face1,1], '*c')
-    plt.plot(c2[face2,0], c2[face2,1], '*c')
-    plt.plot([c1[face1[0], 0], c2[face2[0], 0]], [c1[face1[0], 1], c2[face2[0], 1]], 'c')
-    plt.plot([c1[face1[-1], 0], c2[face2[-1], 0]], [c1[face1[-1], 1], c2[face2[-1], 1]], 'c')
+    plt.grid()
+    plt.axis([-100, 100, -100, 100])
 
-plt.grid()
-plt.axis([-100, 100, -100, 100])
-
-plt.show()
-
+    plt.show()
 
 
 

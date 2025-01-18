@@ -21,10 +21,9 @@ class MeshDomain(gmt.GeoShape):
         mesh_types (list): Contains strings describing the meshing method for each shape. 'hex' for structured hexa mesh, 'tri' for unstructured tri mesh, 'void' to remove domain from control volume (for example the airfoil body)
 
     Methods:
-        YET TO BE DECLARED
+        about a ton of them
 
     """
-
     def __init__(self, points: np.ndarray, squencs: list, shapes: list, spacing: list, nodes: list, mesh_types: list):
         super(MeshDomain, self).__init__(points, squencs, shapes)
         self.nodes = nodes
@@ -32,20 +31,130 @@ class MeshDomain(gmt.GeoShape):
         self.mesh_types = mesh_types
 
 
-# def invert(self, sidekey):
-#     """
-#     Invert the sides of the domain.
+    # DOMAIN GENERATION
+    def layer_domain(self, squenc_i: int, thickness_func: Callable[[np.ndarray], np.ndarray], mesh_type: str = 'hex') -> int:
+        """
+        Generate a layer domain over a sequence. 
 
-#     Args:
-#         sidekey (int): can be 1 or 2, pertaining to sides s11, s12 and s21, s22 respectively.
+        Args:
+            squenc: the sequence index
+            thickness_func: function of layer thickness over the length of the curve (length is normalized 0 <= x <= 1)
+            etype: the mesh_type
+        
+        Returns:
+            the index of the generated shape
 
-#     """
-#     if sidekey == 1:
-#         self.s11 = np.flipud(self.s11)
-#         self.s12 = np.flipud(self.s12)
-#     elif sidekey == 2:
-#         self.s21 = np.flipud(self.s21)
-#         self.s22 = np.flipud(self.s22)
+        """
+        # Prepare stuff
+        points = self.points
+        squenc = self.squencs[squenc_i]
+        crv = points[squenc]
+        # Generate stuff
+        crvlen = gmt.crv_len(crv)
+        lt = thickness_func(crvlen/crvlen[-1])
+        layer = lt * gmt.parallcrv(crv)
+        pshape, lshape = len(points), len(layer)
+        squenc1 = list(range(pshape, pshape + lshape))
+        squenc2 = [squenc[0], pshape]
+        squenc3 = [squenc[-1], pshape + lshape]
+        # Add stuff
+        self.points = np.vstack((points, layer))
+        self.squencs = self.squencs + [squenc1, squenc2, squenc3]
+        lss = len(self.squencs)
+        self.shapes.append([squenc_i, lss-2, lss-3, lss-1])
+        self.mesh_types.append(mesh_type)
+        # Return stuff
+        return len(self.shapes) - 1
+
+
+    def cavity_domain(self, squenc_c: int, bl_thickness: float) -> list:
+        """
+        Generate the internal domains of a cavity.
+
+        Args:
+            squenc_b: the squence that morphs the cavity
+            bl_thickness: the relative boundary layer thickness: 0 < bl_thickness <= 1
+
+        Returns:
+            list containing the indexes of the generated shapes
+
+        """
+        points = self.points
+        squence = self.squencs[squenc_c]
+        crv = points[squence]
+        cavline = np.array([crv[0], crv[-1]])
+        ang1 = gmt.vectorangle(crv[-1]-crv[0], crv[1]-crv[0])
+        ang2 = gmt.vectorangle(crv[0]-crv[-1], crv[-2]-crv[-1])
+        thickness = 0.99 * bl_thickness / np.max(gmt.crv_curvature(crv))
+        if ang1 <= np.pi * 3/4:
+            gap1 = 1.5 * thickness * abs(np.cos(ang1) / np.sin(ang1))
+        else:
+            gap1 = 0
+        if ang2 <= np.pi * 3/4:
+            gap2 = 1.5 * thickness * abs(np.cos(ang2) / np.sin(ang2))
+        else:
+            gap2 = 0
+        
+        # break up sequence
+        # generate sequences
+        # generate shapes
+        # Return stuff
+
+
+    def unstruct_domain(self, squencs: list) -> int:
+        """
+        Generate an unstructured domain.
+        """
+        self.shapes.append(squencs)
+        self.mesh_types.append('tri')
+        return len(self.shapes) - 1
+
+
+    def opface_domain(self, squenc_1: int, squenc_2: int) -> int:
+        """
+        Generate a structured domain from opposing face sequences.
+
+        Args:
+            squenc_1: index of first sequence
+            squenc_2: index of second sequence
+        
+        Returns:
+            index of generated shape
+
+        """
+
+
+    def control_volume(self, ):
+        """
+        Generate control volume.
+
+        """
+
+
+    def trailing_domain(self, ):
+        """
+        Generate trailing domains.
+        
+        """
+
+
+    def patch_domains(self, shape1: int, shape2: int, squenc_1, squenc_2):
+        """
+        Patch neighboring domains that have a common point.
+
+        """
+
+
+    # MESH DENSITY
+    def curve_noding(self, curve_i, dens_func, non: Union[int,None] = None):
+        """
+        """
+
+
+    def point_spacing(self, point_i, spacing):
+        """
+        
+        """
 
 
 # def flip(self):
@@ -79,7 +188,7 @@ def _lec(bodyc: Union[list,tuple,np.ndarray]) -> list:
     return gmt.crcl_fit(bodyc[i-2:i+3])
 
 
-# OPPOSING FACES
+# MORPHOLOGY
 class FacePair:
     """
     Little helper class.
@@ -92,18 +201,20 @@ class FacePair:
         flip: interchange face1 and face2    
     
     """
-    def __init__(self, face1, face2):
+    def __init__(self, face1: list, face2: list):
         self.face1 = face1
         self.face2 = face2
+
 
     def flip(self):
         face1, face2 = self.face1, self.face2
         self.face1, self.face2 = face2, face1
-    
+
+
     def __str__(self):
         return 'Face 1: ' + str(self.face1) + '\nFace 2: ' + str(self.face2)
 
-from matplotlib import pyplot as plt
+
 def opposing_faces(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray], crit_func: Callable[[np.ndarray, np.ndarray, np.ndarray], bool], los_check: bool = False) -> FacePair:
     """
     Find the parts of two geometrics curves which are opposing one another by casting rays from the first curve (c1) to the second (c2). Also apply certain criteria.
@@ -180,7 +291,7 @@ def opposing_faces(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.nda
     return face_pair_list
 
 
-def face_merger(face_pair_list: list, minsim_all: float = 0, minsim_1: float = 0, minsim_2: float = 0) -> list:
+def face_merge(face_pair_list: list, minsim_all: float = 0, minsim_1: float = 0, minsim_2: float = 0) -> list:
     """
     Merges faces from a list, according to their similarity. All similarity criteria must be passed for a merge to happen.
 
@@ -258,12 +369,59 @@ def crossing_boundaries(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,n
     p11, p12 = c1[fp.face1[0]], c1[fp.face1[-1]]
     p21, p22 = c2[fp.face2[0]], c2[fp.face2[-1]]
     p0 = gmt.lnr_inters(gmt.lfp(p11, p21), gmt.lfp(p12, p22))
-    b1 = (p11[0] < p0[0] < p21[0]) or (p11[0] > p0[0] > p21[0])
-    b2 = (p12[0] < p0[0] < p22[0]) or (p12[0] > p0[0] > p22[0])
+    b1 = np.sort([p11[0], p0[0], p21[0]])
+    b2 = np.sort([p11[0], p0[0], p21[0]])
     return b1 and b2
 
 
-# GENERAL DOMAIN FUNCTIONS
+def cavity_id(c: Union[list,tuple,np.ndarray], char_len: float) -> list:
+    """
+    Identify cavities of a curve.
+
+    Args:
+        c: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
+        char_len: characteristic length, the greater it is, the less curved cavities must be to be identified.
+    
+    Returns:
+        list with lists with indexes of cavities
+    
+    """
+    rays = char_len * gmt.parallcrv(c) + c
+    raylen = len(rays)
+    blist1 = []
+    blist2 = []
+    # Identify all cavities
+    for i in range(raylen):
+        for j in range(raylen, i, -1):
+            p0 = gmt.lnr_inters(gmt.lfp(c[j], rays[j]), gmt.lfp(c[i], rays[i]))
+            b1 = np.sort([c[j,0], p0[0], rays[j,0]])[1] == p0[0]
+            b2 = np.sort([c[i,0], p0[0], rays[i,0]])[1] == p0[0]
+            if b1 and b2:
+                blist1.append(i), blist2.append(j)
+                break
+    # Merge overlapping cavities
+    blist1, blist2 = np.array(blist1), np.array(blist2)
+    bi = 0
+    blist1_n, blist2_n = [], []
+    # Create merged cavities and note the ones that were overlapping
+    while bi < len(blist1):
+        b1, b2n = blist1[bi], blist2[bi]
+        b2 = b2n - 1                                # just need it to be different than b2n to run the first loop
+        while b2n != b2:
+            b2 = b2n
+            b2n = np.max(blist2[np.nonzero(blist1 <= b2)[0]])
+        blist1_n.append(b1), blist2_n.append(b2)
+        bi = np.nonzero(blist1 > b2)[0][0]
+    # Generate curve indexes
+    cavities = []
+    for i in range(len(blist1_n)):
+        cavities.append(list(range(blist1_n[i], blist2_n[i] + 1)))
+
+    return cavities
+
+
+# TESTING SECTIONS
+
 def preview_mesh(dm: MeshDomain, div11 = [], div12 = [], div21 = [], div22 = []):
     """
     Meshing algorithm.
@@ -296,113 +454,4 @@ def preview_mesh(dm: MeshDomain, div11 = [], div12 = [], div21 = [], div22 = [])
     #     for segi in range(n):
     #         pass
 
-
-def domain_orthosplit(dm: MeshDomain, div1 = [], div2 = []):
-    """
-    Split an orthogonal mesh domain. Orthogonal is the mesh domains where two sides are parallel and the other two are vertical to them and straight.
-
-    Args:
-        dm (MeshDomain): MeshDomain object
-        div1 (array-like): the side length fractions of sides s11, s12 at which a the domain will be split
-        div2 (array-like): the side length fractions of sides s21, s22 at which a the domain will be split
-
-    Returns:
-        list containing mesh domains
-    
-    Raises:
-        Error: The domain doesnt have a set of parallel sides.
-
-    """
-    # Pick a side
-    s11, s12 = dm.s11, dm.s12
-    s21, s22 = dm.s21, dm.s22
-    l1 = np.hypot(s12[:,0] - s11[:,0], s12[:,1] - s11[:,1])
-    l2 = np.hypot(s22[:,0] - s21[:,0], s22[:,1] - s21[:,1])
-    if np.all((l1 - np.mean(l1)) < np.mean(l1)*10**-3):
-        l = np.mean(l1)
-        divh, divv = div1, div2
-        if gmt.vectorangle(s11[1] - s11[0], s12[0] - s11[0]) < np.pi:
-            t = s11
-        elif gmt.vectorangle(s11[1] - s11[0], s12[0] - s11[0]) > np.pi:
-            t = s12
-    elif np.all((l2 - np.mean(l2)) < np.mean(l2)*10**-3):
-        l = np.mean(l2)
-        divh, divv = div2, div1
-        if gmt.vectorangle(s21[1] - s21[0], s22[0] - s21[0]) < np.pi:
-            t = s21
-        elif gmt.vectorangle(s21[1] - s21[0], s22[0] - s21[0]) > np.pi:
-            t = s22
-
-    # Prepare for division
-    divh = np.sort(divh)
-    divv = np.hstack(([0], np.sort(divv), [1]))
-    domlist = []
-    # Divide t curve
-    t, j = gmt.crv_div(t, divh)
-    tl = np.split(t, j, axis=0)
-    for i in range(len(tl)-1):
-        tl[i] = np.append(tl[i], [tl[i+1][0]], axis=0)
-    # Magna-Divide
-    for j in range(len(tl)):
-        for i in range(1, len(divv)):
-           s11 = tl[j] + gmt.parallcrv(tl[j])*divv[i-1]*l
-           s12 = tl[j] + gmt.parallcrv(tl[j])*divv[i]*l
-           s21 = np.array([s11[0], s12[0]])
-           s22 = np.array([s11[-1], s12[-1]])
-           domlist.append(MeshDomain(s11,s12,s21,s22))
-
-    return domlist
-
-
-def sb_dom_patch(dml):
-    """
-    Patch two neighbouring mesh domains of the same body.
-    """
-
-
-def control_vol(aflc, h, td):
-    """
-    Generate control volume curves.
-    """
-
-
-def trail_dom(cv, bl):
-    """
-    Generate the trailing curve domains.
-    """
-
-
-def blpatch(le_bl, te_bl):
-    """
-    Patch leading and trailing edge boundary layer domains into one.
-    """
-
-
-def edge_project(v1, v2):
-    """"""
-
-
-def p2p_key():
-    pass
-
-
-def cavity_filler():
-    """
-    Generate an unstructured mesh domain 
-    """
-
-
-def element_domain(hla: gmt.GeoShape):
-    """
-    Build a boundary layer domain around elements of a high lift array. 
-
-    Args:
-        hla: high lift array GeoShape
-
-    Returns:
-        ???
-    
-    """
-
-# TESTING SECTIONS
 

@@ -1794,6 +1794,77 @@ class GeoShape:
         return tv
 
 
+    def remove_squence(self, squence_i) -> list:
+        """
+        Remove a sequence from the geoshape. No point deletion takes place.
+
+        Arg:
+            squence_i: the index of the sequence to be removed.
+        
+        Returns:
+            list containing:
+            - list containing all the indexes of all the shapes the sequence was used in
+            - list of lists containing all the corresponding (in-shape) indexes from which the sequence was removed 
+
+        """
+        self.squencs.pop(squence_i)
+        affected_shapes = []
+        popindxs = []
+        shapes = self.shapes
+        for i in range(len(shapes)):
+            shape = shapes[i]
+            j = 0
+            while j < len(shape):
+                if shape[j] > squence_i:
+                    shape[j] -= 1
+                elif shape[j] == squence_i:
+                    shape.pop(j)
+                    affected_shapes.append(i)
+                    popindxs.append(j)
+                    continue
+                j += 1
+        return [affected_shapes, popindxs]
+
+
+    def split_squence(self, squence_i: int, div_i: Union[list,tuple]) -> list:
+        """
+        Split a sequence at given indexes.
+
+        Args:
+            squence_i: the index of the sequence
+            div_i: contains the indexes where the sequence will be divided
+        
+        Returns:
+            set containing the shapes that are affected
+
+        """
+        sequence = self.squencs[squence_i]
+        # Generate sequence parts
+        div_i = np.flip(np.sort(div_i))
+        seqlist = []
+        for i in div_i:
+            if i < len(sequence) - 1:
+                seqlist.append(sequence[i:])
+                sequence = sequence[0:i+1]
+        seqlist.append(sequence)
+        seqlist.reverse()
+        lsl = len(seqlist)
+        # Remove old sequence
+        affected_shapes, insertindxs = self.remove_squence(squence_i)
+        # Add new sequences to squencs
+        seqindxs = list(range(len(self.squencs), len(self.squencs) + lsl))
+        self.squencs = self.squencs + seqlist
+        # Add new sequences to shapes
+        for i in range(len(affected_shapes)):
+            if affected_shapes[i] == affected_shapes[i-1]:
+                addindx += lsl
+            else:
+                addindx = 0
+            for j in range(lsl):
+                self.shapes[i].insert(j + addindx + insertindxs[i], seqindxs[j])
+        return set(affected_shapes)
+
+
 def gs_merge(gsl: list) -> GeoShape:
     """
     Merge an array of GeoShapes, into one GeoShape object.
