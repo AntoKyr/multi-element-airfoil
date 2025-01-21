@@ -67,7 +67,7 @@ def gen_poly(y: Union[list,tuple,np.ndarray], x: Union[list,tuple,np.ndarray] = 
     return funct
 
 
-def gen_ray_crit_func(angtol: float, maxdist: float, mindist: float = 0) -> Callable[[np.ndarray, np.ndarray, np.ndarray],bool]:
+def gen_ray_crit(angtol: float, maxdist: float, mindist: float = 0) -> Callable[[np.ndarray, np.ndarray, np.ndarray],bool]:
     """
     Generate a basic ray trace criterion function for opposing_faces functions.
 

@@ -5,8 +5,6 @@
 
 import numpy as np
 import json
-from matplotlib import pyplot as plt
-from matplotlib.path import Path
 import geometrics as gmt
 from geomdl import fitting
 from typing import Union, Callable
@@ -200,61 +198,6 @@ def gs2afl(gs: gmt.GeoShape) -> Airfoil:
     points = gs.points[gs.squencs[0][0:-1]]
     squencs = [list(range(np.shape(points)[0]))]
     return Airfoil(points, squencs, gs.shapes)
-
-
-def cross_check(gs: gmt.GeoShape) -> bool:
-    """
-    Check if any point of any shape in a GeoShape, is inside the polygon defined by the points of another shape of the GeoShape.
-    This type of check identifies *most* crossings between shapes, and this is good enough. 
-
-    Returns:
-        bool: True if there is a "cross"
-
-    """
-    points = gs.points
-    squencs = gs.squencs
-    polygons = []
-    for shape in gs.shapes:
-        indcs = np.hstack(squencs[shape])
-        polygons.append(points[indcs])
-
-    for i in range(len(polygons)):
-        for j in range(len(polygons)):
-            if np.any(Path(polygons[i]).contains_points(polygons[j])):
-                return True
-    return False
-
-
-def gs_plot(gs: gmt.GeoShape, lines: bool = True, indxs: bool = True, marks: bool = True, show: bool = True) -> None:
-    """
-    Plot the geometric shape.
-
-    Args:
-        lines (bool): If True, the lines of the curves will be plotted
-        indxs (bool): If True, the points will be numbered according to their index in the point matrix
-        marks (bool): If True, the points will be marked with dots
-        show (bool): If True, the plot will be shown after plotting
-    
-    """
-    points = gs.points
-    squencs = gs.squencs
-
-    if lines:
-        for squence in squencs:
-            plt.plot(points[squence,0], points[squence,1], '-b')
-    
-    if marks:
-        plt.plot(points[:,0], points[:,1], '.r')
-    
-    if indxs:
-        for i in range(np.shape(points)[0]):
-            plt.text(points[i,0], points[i,1], i)
-
-    plt.grid(visible=True)
-    plt.axis('equal')
-
-    if show:
-        plt.show()
 
 
 def sides(afl: Airfoil) -> list:

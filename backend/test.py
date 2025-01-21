@@ -62,7 +62,7 @@ def multivartest(array, funct):
     plt.show()
 
 
-if False: 
+if False: # big test
     afld = flg.read_ord()
 
     _ = list(afld.keys())
@@ -105,7 +105,7 @@ if False:
     multivartest(namearr, hld_test)
 
 
-if False:
+if False: # face_merge test
     plt.axis([-100, 100, -100, 100])
 
     curvs = draw_curves()
@@ -113,7 +113,7 @@ if False:
     c1,c2 = curvs
 
     dist = np.min(gmt.crv_dist(c1, c2))
-    critfunc = functbook.gen_ray_crit_func(np.pi/4, 5*dist)
+    critfunc = functbook.gen_ray_crit(np.pi/4, 100*dist)
 
     facepairlist = mdd.opposing_faces(c1, c2, critfunc, los_check=True)
 
@@ -125,10 +125,16 @@ if False:
     for facepair in facepairlist:
         face1 = facepair.face1
         face2 = facepair.face2
-        plt.plot(c1[face1,0], c1[face1,1], '*c')
-        plt.plot(c2[face2,0], c2[face2,1], '*c')
-        plt.plot([c1[face1[0], 0], c2[face2[0], 0]], [c1[face1[0], 1], c2[face2[0], 1]], 'c')
-        plt.plot([c1[face1[-1], 0], c2[face2[-1], 0]], [c1[face1[-1], 1], c2[face2[-1], 1]], 'c')
+        if mdd.crossing_boundaries(c1, c2, facepair):
+            plt.plot(c1[face1,0], c1[face1,1], '*g')
+            plt.plot(c2[face2,0], c2[face2,1], '*g')
+            plt.plot([c1[face1[0], 0], c2[face2[0], 0]], [c1[face1[0], 1], c2[face2[0], 1]], 'g')
+            plt.plot([c1[face1[-1], 0], c2[face2[-1], 0]], [c1[face1[-1], 1], c2[face2[-1], 1]], 'g')
+        else:
+            plt.plot(c1[face1,0], c1[face1,1], '*c')
+            plt.plot(c2[face2,0], c2[face2,1], '*c')
+            plt.plot([c1[face1[0], 0], c2[face2[0], 0]], [c1[face1[0], 1], c2[face2[0], 1]], 'c')
+            plt.plot([c1[face1[-1], 0], c2[face2[-1], 0]], [c1[face1[-1], 1], c2[face2[-1], 1]], 'c')
 
     plt.grid()
     plt.axis([-100, 100, -100, 100])
@@ -136,4 +142,45 @@ if False:
     plt.show()
 
 
+if False: # cavity_id test
+    plt.axis([-100, 100, -100, 100])
 
+    curvs = draw_curves()
+
+    c1 = curvs[0]
+
+    plt.plot(c1[:,0], c1[:,1])
+    pc = c1 - 20*gmt.parallcrv(c1)
+    for i in range(len(pc)):
+        plt.plot([c1[i,0], pc[i,0]], [c1[i,1], pc[i,1]], 'r')
+        plt.text(c1[i,0], c1[i,1], i)
+
+    cavities = mdd.cavity_id(c1, -20)
+
+    for cavity in cavities:
+        plt.plot(c1[cavity,0], c1[cavity,1], '*')
+
+    plt.grid()
+    plt.axis('equal')
+    plt.show()
+
+
+if True: # domain generation test
+    tf = lambda x: 1
+    plt.axis([-10, 10, -10, 10])
+    gs = gmt.crv2gs([draw_curves()])[0]
+    md = mdd.gs2md(gs)
+    # ID a cavity
+    # split the sequence
+    # create a cavity domain
+    # create layer domains over everything
+    cavindxs = mdd.cavity_id(md.points[md.squencs[2]], 4)
+    if cavindxs[-1][-1] == len(md.squencs[2]) -1:
+        seqi = -1
+    else:
+        seqi = -2
+    seqindx = md.split_sequence(2, [cavindxs[0][0], cavindxs[-1][-1]])
+    md.cavity_domain(seqindx[seqi], 0.2)
+    # print(md)
+    print(len(md.points), len(md.spacing), len(md.squencs), len(md.nodes), len(md.shapes), len(md.mesh_types))
+    gmt.gs_plot(md)

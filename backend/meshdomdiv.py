@@ -24,11 +24,49 @@ class MeshDomain(gmt.GeoShape):
         about a ton of them
 
     """
+
     def __init__(self, points: np.ndarray, squencs: list, shapes: list, spacing: list, nodes: list, mesh_types: list):
         super(MeshDomain, self).__init__(points, squencs, shapes)
         self.nodes = nodes
         self.spacing = spacing
         self.mesh_types = mesh_types
+
+
+    def __str__(self):
+        return super(MeshDomain, self).__str__() + '\nSpacing: ' + str(self.spacing) + '\nNodes: ' + str(self.nodes) + '\nMesh Types: ' + str(self.mesh_types)
+
+
+    def remove_sequence(self, squence_i):
+        self.nodes.pop(squence_i)
+        return super(MeshDomain, self).remove_sequence(squence_i)
+
+
+
+    def split_sequence(self, squence_i: int, div_i: Union[list,tuple]) -> list:
+        """
+        Same as super but also removes and adds relevant nodes.
+        """
+        sequence = self.squencs[squence_i]
+        nodes = self.nodes[squence_i]
+        seqlist = super(MeshDomain, self).split_sequence(squence_i, div_i)
+        if nodes == None:
+            self.nodes = self.nodes + list(np.full(len(seqlist), None))
+        else:
+            div_i = np.unique(div_i)
+            if div_i[0] == 0:
+                div_i = div_i[1:]
+            if div_i[-1] == len(sequence):
+                div_i = div_i[:-1]
+            crvlen = self.points[sequence]
+            lenfrac = crvlen[div_i] / crvlen[-1]
+            new_nodes = np.sort(np.concatenate((lenfrac,nodes)))
+            indxs = np.concatenate(([0], np.searchsorted(nodes, lenfrac) + np.arange(0, len(lenfrac)), [len(new_nodes)-1]))
+            nodelist = []
+            for i in range(len(indxs)-1):
+                nodelist.append(new_nodes[indxs[i] : indxs[i+1]+1])
+            self.nodes = self.nodes + nodelist
+
+        return seqlist
 
 
     # DOMAIN GENERATION
@@ -51,29 +89,31 @@ class MeshDomain(gmt.GeoShape):
         crv = points[squenc]
         # Generate stuff
         crvlen = gmt.crv_len(crv)
-        lt = thickness_func(crvlen/crvlen[-1])
-        layer = lt * gmt.parallcrv(crv)
+        lt = thickness_func(crvlen / crvlen[-1])
+        layer = crv + lt * gmt.parallcrv(crv)
         pshape, lshape = len(points), len(layer)
         squenc1 = list(range(pshape, pshape + lshape))
         squenc2 = [squenc[0], pshape]
-        squenc3 = [squenc[-1], pshape + lshape]
+        squenc3 = [squenc[-1], pshape + lshape - 1]
         # Add stuff
         self.points = np.vstack((points, layer))
         self.squencs = self.squencs + [squenc1, squenc2, squenc3]
         lss = len(self.squencs)
         self.shapes.append([squenc_i, lss-2, lss-3, lss-1])
         self.mesh_types.append(mesh_type)
+        self.spacing = self.spacing + list(np.full(len(crvlen), None))
+        self.nodes = self.nodes + [self.nodes[squenc_i], None, None]
         # Return stuff
         return len(self.shapes) - 1
 
 
-    def cavity_domain(self, squenc_c: int, bl_thickness: float) -> list:
+    def cavity_domain(self, squenc_c: int, bl_thickness: float = 0.1) -> list:
         """
         Generate the internal domains of a cavity.
 
         Args:
             squenc_b: the squence that morphs the cavity
-            bl_thickness: the relative boundary layer thickness: 0 < bl_thickness <= 1
+            bl_thickness: the relative boundary layer thickness: 0 < bl_thickness < 1
 
         Returns:
             list containing the indexes of the generated shapes
@@ -82,10 +122,11 @@ class MeshDomain(gmt.GeoShape):
         points = self.points
         squence = self.squencs[squenc_c]
         crv = points[squence]
-        cavline = np.array([crv[0], crv[-1]])
-        ang1 = gmt.vectorangle(crv[-1]-crv[0], crv[1]-crv[0])
+        self.squencs.append([squence[0], squence[-1]])
+        self.nodes.append(None)
+        ang1 = gmt.vectorangle(crv[1]-crv[0], crv[-1]-crv[0])
         ang2 = gmt.vectorangle(crv[0]-crv[-1], crv[-2]-crv[-1])
-        thickness = 0.99 * bl_thickness / np.max(gmt.crv_curvature(crv))
+        thickness = bl_thickness / np.max(np.abs(gmt.crv_curvature(crv)))
         if ang1 <= np.pi * 3/4:
             gap1 = 1.5 * thickness * abs(np.cos(ang1) / np.sin(ang1))
         else:
@@ -94,11 +135,15 @@ class MeshDomain(gmt.GeoShape):
             gap2 = 1.5 * thickness * abs(np.cos(ang2) / np.sin(ang2))
         else:
             gap2 = 0
-        
-        # break up sequence
-        # generate sequences
-        # generate shapes
-        # Return stuff
+        crvlen = gmt.crv_len(crv)
+        i1 = np.nonzero(crvlen >= gap1)[0][0]
+        i2 = np.nonzero(crvlen <= crvlen[-1] - gap2)[0][-1]
+        self.split_sequence(squenc_c, [i1,i2])
+        self.layer_domain(len(self.squencs)-2, lambda x: thickness)
+        sl = len(self.squencs)
+        self.unstruct_domain([sl-1,sl-2,sl-3,sl-4,sl-6,sl-7])
+        sl = len(self.shapes)
+        return [sl-2, sl-1]
 
 
     def unstruct_domain(self, squencs: list) -> int:
@@ -138,6 +183,15 @@ class MeshDomain(gmt.GeoShape):
         """
 
 
+    def border_sqncs(self):
+        """
+        Get the outer sequences that envelop the entire domain.
+        """
+        
+
+
+
+
     def patch_domains(self, shape1: int, shape2: int, squenc_1, squenc_2):
         """
         Patch neighboring domains that have a common point.
@@ -163,6 +217,23 @@ class MeshDomain(gmt.GeoShape):
 #     """
 #     self.s11, self.s21 = self.s21, self.s11
 #     self.s12, self.s22 = self.s22, self.s12
+
+
+def gs2md(gs: gmt.GeoShape) -> MeshDomain:
+    """
+    Create a MeshDomain from a GeoShape.
+    
+    Args:
+        gs: GeoShape to be used
+
+    Returns:
+        MeshDomain from GeoShape
+
+    """
+    mesh_types = list(np.full(len(gs.shapes), None))
+    nodes = list(np.full(len(gs.squencs), None))
+    spacing = list(np.full(len(gs.points), None))
+    return MeshDomain(gs.points, gs.squencs, gs.shapes, spacing, nodes, mesh_types)
 
 
 # SUPPORTING FUNCTIONS
@@ -206,13 +277,13 @@ class FacePair:
         self.face2 = face2
 
 
+    def __str__(self):
+        return 'Face 1: ' + str(self.face1) + '\nFace 2: ' + str(self.face2)
+
+
     def flip(self):
         face1, face2 = self.face1, self.face2
         self.face1, self.face2 = face2, face1
-
-
-    def __str__(self):
-        return 'Face 1: ' + str(self.face1) + '\nFace 2: ' + str(self.face2)
 
 
 def opposing_faces(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray], crit_func: Callable[[np.ndarray, np.ndarray, np.ndarray], bool], los_check: bool = False) -> FacePair:
@@ -291,7 +362,7 @@ def opposing_faces(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.nda
     return face_pair_list
 
 
-def face_merge(face_pair_list: list, minsim_all: float = 0, minsim_1: float = 0, minsim_2: float = 0) -> list:
+def face_merge(face_pair_list: list, minsim_1: float = 0, minsim_2: float = 0, minsim_all: float = 0) -> list:
     """
     Merges faces from a list, according to their similarity. All similarity criteria must be passed for a merge to happen.
 
@@ -306,14 +377,15 @@ def face_merge(face_pair_list: list, minsim_all: float = 0, minsim_1: float = 0,
 
     """
     restart = True
-    ll = len(face_pair_list)
+    
     while restart:
         restart = False
+        ll = len(face_pair_list)
 
         for i in range(ll):
-            fpi1, fpi2 = face_pair_list[i]
-            for j in range(i,ll):
-                fpj1, fpj2 = face_pair_list[j]
+            fpi1, fpi2 = face_pair_list[i].face1, face_pair_list[i].face2
+            for j in range(i+1,ll):
+                fpj1, fpj2 = face_pair_list[j].face1, face_pair_list[j].face2
                 ls1 = len(set(fpj1 + fpi1))
                 ls2 = len(set(fpj2 + fpi2))
                 li1, li2 = len(fpi1), len(fpi2)
@@ -321,7 +393,7 @@ def face_merge(face_pair_list: list, minsim_all: float = 0, minsim_1: float = 0,
                 sim_1 = (li1 + lj1 - ls1) / min(li1, lj1)
                 sim_2 = (li2 + lj2 - ls2) / min(li2, lj2)
                 sim_all = (li2 + lj2 + li1 + lj1 - ls1 - ls2) / (min(li1, lj1) + min(li2, lj2))
-                if (sim_1 > minsim_1) and (sim_2 > minsim_2) and (sim_all > minsim_all):
+                if (sim_1 >= minsim_1) and (sim_2 >= minsim_2) and (sim_all >= minsim_all):
                     restart = True
                     break
             if restart:
@@ -344,7 +416,6 @@ def face_merge(face_pair_list: list, minsim_all: float = 0, minsim_1: float = 0,
                 fp2 = list(range(start, stop-1, -1))
                     
             fp = FacePair(fp1, fp2)
-
             # Pop out old face pairs and place new one
             face_pair_list.pop(j)
             face_pair_list.pop(i)
@@ -369,8 +440,8 @@ def crossing_boundaries(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,n
     p11, p12 = c1[fp.face1[0]], c1[fp.face1[-1]]
     p21, p22 = c2[fp.face2[0]], c2[fp.face2[-1]]
     p0 = gmt.lnr_inters(gmt.lfp(p11, p21), gmt.lfp(p12, p22))
-    b1 = np.sort([p11[0], p0[0], p21[0]])
-    b2 = np.sort([p11[0], p0[0], p21[0]])
+    b1 = np.sort([p11[0], p0[0], p21[0]])[1] == p0[0]
+    b2 = np.sort([p11[0], p0[0], p21[0]])[1] == p0[0]
     return b1 and b2
 
 
@@ -392,7 +463,7 @@ def cavity_id(c: Union[list,tuple,np.ndarray], char_len: float) -> list:
     blist2 = []
     # Identify all cavities
     for i in range(raylen):
-        for j in range(raylen, i, -1):
+        for j in range(raylen-1, i, -1):
             p0 = gmt.lnr_inters(gmt.lfp(c[j], rays[j]), gmt.lfp(c[i], rays[i]))
             b1 = np.sort([c[j,0], p0[0], rays[j,0]])[1] == p0[0]
             b2 = np.sort([c[i,0], p0[0], rays[i,0]])[1] == p0[0]
@@ -404,14 +475,17 @@ def cavity_id(c: Union[list,tuple,np.ndarray], char_len: float) -> list:
     bi = 0
     blist1_n, blist2_n = [], []
     # Create merged cavities and note the ones that were overlapping
-    while bi < len(blist1):
+    while True:
         b1, b2n = blist1[bi], blist2[bi]
         b2 = b2n - 1                                # just need it to be different than b2n to run the first loop
         while b2n != b2:
             b2 = b2n
             b2n = np.max(blist2[np.nonzero(blist1 <= b2)[0]])
         blist1_n.append(b1), blist2_n.append(b2)
-        bi = np.nonzero(blist1 > b2)[0][0]
+        if np.any(blist1 > b2):
+            bi = np.nonzero(blist1 > b2)[0][0]
+        else:
+            break
     # Generate curve indexes
     cavities = []
     for i in range(len(blist1_n)):
@@ -453,5 +527,3 @@ def preview_mesh(dm: MeshDomain, div11 = [], div12 = [], div21 = [], div22 = [])
     # for _ in range(reps):
     #     for segi in range(n):
     #         pass
-
-

@@ -9,6 +9,8 @@ import numpy as np
 import math
 from geomdl import fitting
 from geomdl.BSpline import Curve
+from matplotlib import pyplot as plt
+from matplotlib.path import Path
 from typing import Callable, Union
 
 # A point is a vector of the x , y coordinates that define it
@@ -1759,6 +1761,10 @@ class GeoShape:
         self.shapes = shapes
 
 
+    def __str__(self):
+        return 'Points: ' + str(self.points) + '\nSequences: ' + str(self.squencs) + '\nShapes: ' + str(self.shapes)
+
+
     def transform(self, center: Union[list,tuple,np.ndarray], theta: float, sf: Union[list,tuple,np.ndarray], tv: Union[list,tuple,np.ndarray]) -> list:
         """
         Transform the GeoShape's points.
@@ -1794,7 +1800,7 @@ class GeoShape:
         return tv
 
 
-    def remove_squence(self, squence_i) -> list:
+    def remove_sequence(self, squence_i) -> list:
         """
         Remove a sequence from the geoshape. No point deletion takes place.
 
@@ -1826,7 +1832,7 @@ class GeoShape:
         return [affected_shapes, popindxs]
 
 
-    def split_squence(self, squence_i: int, div_i: Union[list,tuple]) -> list:
+    def split_sequence(self, squence_i: int, div_i: Union[list,tuple]) -> list:
         """
         Split a sequence at given indexes.
 
@@ -1835,7 +1841,7 @@ class GeoShape:
             div_i: contains the indexes where the sequence will be divided
         
         Returns:
-            set containing the shapes that are affected
+            indexes of new sequences
 
         """
         sequence = self.squencs[squence_i]
@@ -1843,31 +1849,33 @@ class GeoShape:
         div_i = np.flip(np.sort(div_i))
         seqlist = []
         for i in div_i:
-            if i < len(sequence) - 1:
+            if (i < len(sequence) - 1) and (i > 0):
                 seqlist.append(sequence[i:])
                 sequence = sequence[0:i+1]
         seqlist.append(sequence)
         seqlist.reverse()
         lsl = len(seqlist)
         # Remove old sequence
-        affected_shapes, insertindxs = self.remove_squence(squence_i)
+        affected_shapes, insertindxs = self.remove_sequence(squence_i)
         # Add new sequences to squencs
         seqindxs = list(range(len(self.squencs), len(self.squencs) + lsl))
         self.squencs = self.squencs + seqlist
         # Add new sequences to shapes
-        for i in range(len(affected_shapes)):
-            if affected_shapes[i] == affected_shapes[i-1]:
+        for i in range(0, len(affected_shapes)):
+            if (affected_shapes[i] == affected_shapes[i-1]) and (i > 0):
                 addindx += lsl
             else:
                 addindx = 0
+
             for j in range(lsl):
-                self.shapes[i].insert(j + addindx + insertindxs[i], seqindxs[j])
-        return set(affected_shapes)
+                self.shapes[affected_shapes[i]].insert(j + addindx + insertindxs[i], seqindxs[j])
+
+        return seqindxs
 
 
 def gs_merge(gsl: list) -> GeoShape:
     """
-    Merge an array of GeoShapes, into one GeoShape object.
+    Merge a list of GeoShapes, into one GeoShape object.
 
     Args:
         gsl: A list containing all the shape objects
@@ -1919,6 +1927,20 @@ def gs_merge(gsl: list) -> GeoShape:
     return GeoShape(points, squencs, shapes)
 
 
+def gs_copy(gs: GeoShape) -> GeoShape:
+    """
+    Make copy of a GeoShape and return it.
+
+    Args:
+        gs: the GeoShape to be copied
+
+    Returns:
+        copy of the GeoShape
+
+    """
+    return GeoShape(gs.points, gs.squencs, gs.shapes)
+
+
 def crv2gs(curvesls: list) -> list:
     """
     Generate a GeoShape from geometric curves as defined in geometrics package. 
@@ -1948,3 +1970,58 @@ def crv2gs(curvesls: list) -> list:
         gsl.append(GeoShape(points, squencs, shapes))
 
     return gsl
+
+
+def cross_check(gs: GeoShape) -> bool:
+    """
+    Check if any point of any shape in a GeoShape, is inside the polygon defined by the points of another shape of the GeoShape.
+    This type of check identifies *most* crossings between shapes, and this is good enough. 
+
+    Returns:
+        bool: True if there is a "cross"
+
+    """
+    points = gs.points
+    squencs = gs.squencs
+    polygons = []
+    for shape in gs.shapes:
+        indcs = np.hstack(squencs[shape])
+        polygons.append(points[indcs])
+
+    for i in range(len(polygons)):
+        for j in range(len(polygons)):
+            if np.any(Path(polygons[i]).contains_points(polygons[j])):
+                return True
+    return False
+
+
+def gs_plot(gs: GeoShape, lines: bool = True, indxs: bool = True, marks: bool = True, show: bool = True) -> None:
+    """
+    Plot the geometric shape.
+
+    Args:
+        lines (bool): If True, the lines of the curves will be plotted
+        indxs (bool): If True, the points will be numbered according to their index in the point matrix
+        marks (bool): If True, the points will be marked with dots
+        show (bool): If True, the plot will be shown after plotting
+    
+    """
+    points = gs.points
+    squencs = gs.squencs
+
+    if lines:
+        for squence in squencs:
+            plt.plot(points[squence,0], points[squence,1], '-')
+    
+    if marks:
+        plt.plot(points[:,0], points[:,1], '.r')
+    
+    if indxs:
+        for i in range(np.shape(points)[0]):
+            plt.text(points[i,0], points[i,1], i)
+
+    plt.grid(visible=True)
+    plt.axis('equal')
+
+    if show:
+        plt.show()
