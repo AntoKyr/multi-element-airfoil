@@ -175,7 +175,7 @@ def comcheck(p1: Union[list,tuple,np.ndarray], p2: Union[list,tuple,np.ndarray],
 
 
 # SPLINE
-def spline_param_find(spline: Curve, val: Union[float,list,tuple,np.ndarray], axis: Union[int,list,tuple,np.ndarray], tol: float = 10**-3, delta: float = 10**-3) -> list:
+def spline_cord_param(spline: Curve, val: Union[float,list,tuple,np.ndarray], axis: Union[int,list,tuple,np.ndarray], tol: float = 10**-3, delta: float = 10**-3) -> list:
     """
     Return the parametre of a spline, at certain coordinates, using bisection method.
 
@@ -215,6 +215,10 @@ def spline_param_find(spline: Curve, val: Union[float,list,tuple,np.ndarray], ax
     return params
 
 
+def spline_len_param(spline: Curve, val: Union[float,list,tuple,np.ndarray], tol: float = 10**-3, delta: float = 10**-3) -> list:
+    """"""
+
+
 def cbs_interp(c: Union[list,tuple,np.ndarray], val: Union[float,list,tuple,np.ndarray], axis: Union[int,list,tuple,np.ndarray], spfargs: Union[list,tuple,np.ndarray] = [], centripetal: bool = True) -> np.ndarray:
     """
     Use a fitted cubic bspline to interpolate points at certain values.
@@ -231,7 +235,7 @@ def cbs_interp(c: Union[list,tuple,np.ndarray], val: Union[float,list,tuple,np.n
 
     """
     spline = fitting.interpolate_curve(list(c), 3, centripetal=centripetal)
-    params = spline_param_find(spline, val, axis, *spfargs)
+    params = spline_cord_param(spline, val, axis, *spfargs)
     return np.array(spline.evaluate_list(params))
 
 
@@ -1307,7 +1311,62 @@ def crv_fit2p(c: Union[list,tuple,np.ndarray], p1: Union[list,tuple,np.ndarray],
     return c
 
 
+def crv_snap(c: Union[list,tuple,np.ndarray], coords: Union[list,tuple,np.ndarray]) -> np.ndarray:
+    """
+    Snap a curve's end onto given coordinates so it retains its original general shape. (The curve's start remains at the original point)
+
+    Args:
+        c: [[x0, y0], [x1, y1], ... , [xm, ym]] the matrix containing all the point coordinates of curve
+        coords: [x, y] coordinates to snap to
+        end: The end of the cuvre that will be snapped onto the coords, 0 assigns the beggining of the list and -1 the end
+
+    Returns:
+        snapped curve
+
+    """
+    c = np.array(c)
+    clen = crv_len(c)
+    lenfract = clen / clen[-1]
+    lenfract = np.transpose([lenfract,lenfract])
+    cf = crv_fit2p(c, c[0], coords)
+    return cf * lenfract + (1 - lenfract) * c
+
+
 # CURVE INTERACTIONS
+def mean_crv(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray], ratio: Union[float,list,tuple,np.ndarray] = 0.5, centripetal: bool = True) -> np.ndarray:
+    """
+    Generate a mean curve based on a ratio number.
+
+    Args:
+        c1: [[x0, y0], [x1, y1], ... , [xm, ym]] the matrix containing all the point coordinates of curve 1
+        c2: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of curve 2
+        ratio: the ratio of the curves to be used
+    
+    Returns:
+        [[x0, y0], [x1, y1], ... , [xm, ym]] the calculated curve
+
+    """
+    c1, c2 = list(c1), list(c2)
+
+    if len(c1) > 3:
+        c1spl = fitting.interpolate_curve(c1, 3, centripetal=centripetal)
+    else:
+        c1spl = fitting.interpolate_curve(c1, len(c1) - 1, centripetal=centripetal)
+    if len(c2) > 3:
+        c2spl = fitting.interpolate_curve(c2, 3, centripetal=centripetal)
+    else:
+        c2spl = fitting.interpolate_curve(c2, len(c2) - 1, centripetal=centripetal)
+
+    delta = 1/(max(len(c1), len(c2)) + 1)
+    c1spl.delta, c2spl.delta = delta, delta
+    c1, c2 = np.array(c1spl.evalpts), np.array(c2spl.evalpts)
+
+    if np.array(ratio).ndim == 1:
+        ratio = np.transpose([ratio, ratio])
+    
+    return ratio * c1 + (1 - ratio) * c2
+
+
 def crv_dist(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray]) -> np.ndarray:
     """
     Measure distance between points of two curves.
@@ -1746,7 +1805,7 @@ class GeoShape:
 
     Attr:
         points (ndarray):  [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates
-        squencs (list): A list of lists of indexes pointing in the points matrix, describing the points each curve passes through
+        squencs (list): A dictionary of lists of indexes pointing in the points matrix, describing the points each curve passes through
         shapes (list): A list of lists of indexes pointing in the squencs list, showing the sequences that each shape consists of
 
     Methods:
@@ -1800,7 +1859,7 @@ class GeoShape:
         return tv
 
 
-    def remove_sequence(self, squence_i) -> list:
+    def remove_sequence(self, squence_i: int) -> list:
         """
         Remove a sequence from the geoshape. No point deletion takes place.
 
@@ -1830,6 +1889,26 @@ class GeoShape:
                     continue
                 j += 1
         return [affected_shapes, popindxs]
+
+
+    def remove_point(self, point_i: int):
+        """
+        Remove a point from the GeoShape.
+
+        Args:
+            point_i: point index
+
+        """
+        # edit sequences
+        for squence in self.squencs:
+            squence = np.array(squence)
+            greaterindxs = np.nonzero(squence > point_i)[0]
+            equalindxs = np.nonzero(squence == point_i)[0]
+            squence[greaterindxs] += 1
+            squence = np.delete(squence, equalindxs)
+            squence = list(squence)
+        # remove point
+        self.points = np.delete(self.points, point_i, axis=0)
 
 
     def split_sequence(self, squence_i: int, div_i: Union[list,tuple]) -> list:
@@ -1871,6 +1950,62 @@ class GeoShape:
                 self.shapes[affected_shapes[i]].insert(j + addindx + insertindxs[i], seqindxs[j])
 
         return seqindxs
+
+
+    def squence_ref(self, squence_i: int, spl: Union[list,tuple] = []) -> list:
+        """
+        Get all the shape indexes that reference the indexed sequence.
+
+        Args:
+            squence_i: the index of the sequence
+
+        Returns:
+            list containing all shape indexes referencing the sequence
+
+        """
+        reflist = []
+        if len(spl) == 0:
+            spl = list(range(len(self.shapes)))
+        shapes = self.shapes[spl]
+        for i in spl:
+            if squence_i in shapes[i]:
+                reflist.append(i)
+        return reflist
+
+
+    def point_ref(self, point_i: int, sql: Union[list,tuple] = []) -> list:
+        """
+        Get all the sequence indexes that reference the indexed point.
+
+        Args:
+            point_i: the index of the point
+
+        Returns:
+            list containing all sequence indexes referencing the point
+
+        """
+        reflist = []
+        if len(sql) == 0:
+            sql = list(range(len(self.squencs)))
+        squencs = self.squencs[sql]
+        for i in sql:
+            if point_i in squencs[i]:
+                reflist.append(i)
+        return reflist
+
+
+    def add_crv(self, crv: Union[list,tuple,np.ndarray]):
+        """
+        Add a curve (as mentioned in geometrics package) to the GeoShape.
+
+        Args:
+            crv: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
+
+        """
+        i1 = len(self.points)
+        i2 = i1 + len(crv)
+        self.squencs.append(list(range(i1,i2)))
+        self.points = np.vstack((self.points, crv))
 
 
 def gs_merge(gsl: list) -> GeoShape:

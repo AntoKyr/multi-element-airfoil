@@ -165,7 +165,7 @@ if False: # cavity_id test
     plt.show()
 
 
-if True: # domain generation test
+if False: # domain generation test
     tf = lambda x: 1
     plt.axis([-10, 10, -10, 10])
     gs = gmt.crv2gs([draw_curves()])[0]
@@ -184,3 +184,9 @@ if True: # domain generation test
     # print(md)
     print(len(md.points), len(md.spacing), len(md.squencs), len(md.nodes), len(md.shapes), len(md.mesh_types))
     gmt.gs_plot(md)
+
+
+
+
+
+
