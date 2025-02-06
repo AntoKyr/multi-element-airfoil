@@ -186,6 +186,128 @@ if False: # domain generation test
     gmt.gs_plot(md)
 
 
+if False: # outer shell, clear duplicates test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.shapes = [[0,1,6],[6,7,8],[2,3,7],[4,5,8],[8,7,6]]
+    gs.clear_duplicates(5)
+    print(gs)
+    gs.plot()
+    # md = mdd.gs2md(gs)
+    # print(md)
+    # oush = md.outer_shell()
+    # md.plot(show=False)
+    # for i in oush:
+    #     plt.plot(md.points[md.squencs[i], 0], md.points[md.squencs[i], 1], '*r')
+    #     plt.plot(md.points[md.squencs[i], 0], md.points[md.squencs[i], 1], '--r')
+    # plt.show()
+
+
+if False: # shape clarify test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    gs.shapes = [[0,2,4,1,3]]
+    print(gs)
+    print(gs.shape_clarify(0, 2))
+
+
+if False: # proxi point test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs[:-1]:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    point = curvs[-1][0]
+    pi = gs.prox_point_index(point, 2)
+    gs.plot(show=False)
+    x, y = gs.points[gs.squencs[2][pi]]
+    plt.plot(x, y, '*')
+    plt.show()
+
+
+if False: # snap intersection test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs[:-1]:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    coords = curvs[-1][0]
+    plt.plot(coords[0], coords[1], 'o')
+    for sq in gs.squencs:
+        plt.plot(gs.points[sq, 0], gs.points[sq, 1], '--')
+    print(coords)
+    pi = gs.snap_intersection(0, coords)
+    for sq in gs.squencs:
+        plt.plot(gs.points[sq, 0], gs.points[sq, 1])
+    plt.grid()
+    plt.show()
+
+
+if False: # split sequence test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    md = mdd.gs2md(gs)
+    md.nodes = [list(np.linspace(0,1,20))]
+    md.split_sequence(0, [2,6])
+    print(md)
+
+
+if False: # reflex domain and split hex domain test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    md = mdd.gs2md(gs)
+    md.nodes = [[0,0.33,0.66,1], [0,0.2,0.4,0.6,0.8,1], [0,0.33,0.66,1], [0,0.2,0.4,0.6,0.8,1]]
+    md.shapes = [[0, 1, 2, 3]]
+    md.mesh_types = ['hex']
+    md.plot()
+    md.split_hex_domain(0,0,0.3)
+    print(md)
+    md.plot()
+
+
+if False: # opface domain test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    md = mdd.gs2md(gs)
+    md.nodes = [[0,0.25,0.5,0.75,1], [0,0.2,0.4,0.6,0.8,1]]
+    md.opface_domain(0, 1, codirectional=True, crvpn=10)
+    md.plot()
+
+
+if False: # attach domains test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    gs.shapes = [[0,1,2], [3,4,5,6]]
+    md = mdd.gs2md(gs)
+    md.attach_domains(0, 1, deform_indx=1, boundary_indx=1)
+    print(md)
+    md.plot()
+
 
 
 

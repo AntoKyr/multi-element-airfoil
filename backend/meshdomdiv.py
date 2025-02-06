@@ -5,22 +5,7 @@
 import numpy as np
 import geometrics as gmt
 from typing import Union, Callable
-
-
-# private stuff
-def __nxt_i(x: int) -> int:
-    """ Get 1 for indx 0 and -2 for indx -1. """
-    if x == 0:
-        return 1
-    else:
-        return x - 1
-def __opst_i(x: int) -> int:
-    """ Get -1 for indx 0 and 0 for indx -1. """
-    if x == 0:
-        return -1
-    else:
-        return 0
-
+from matplotlib import pyplot as plt
 
 # MESH DOMAIN CLASS
 class MeshDomain(gmt.GeoShape):
@@ -76,71 +61,21 @@ class MeshDomain(gmt.GeoShape):
                 div_i = div_i[1:]
             if div_i[-1] == len(sequence):
                 div_i = div_i[:-1]
-            crvlen = self.points[sequence]
+            crvlen = gmt.crv_len(self.points[sequence])
             lenfrac = crvlen[div_i] / crvlen[-1]
             new_nodes = np.sort(np.concatenate((lenfrac,nodes)))
             indxs = np.concatenate(([0], np.searchsorted(nodes, lenfrac) + np.arange(0, len(lenfrac)), [len(new_nodes)-1]))
             nodelist = []
             for i in range(len(indxs)-1):
-                nodelist.append(new_nodes[indxs[i] : indxs[i+1]+1])
+                addnodes = new_nodes[indxs[i] : indxs[i+1]+1]
+                addnodes = (addnodes - addnodes[0]) / (addnodes[-1] - addnodes[0]) 
+                nodelist.append(addnodes)
             self.nodes = self.nodes + nodelist
 
         return seqlist
 
 
-    def shape_clarify(self, shape_i: int, sqi: int = 0) -> list:
-        """
-        Get order and orientation of all sequences of a proper shape.
-
-        Args:
-            shape_i: the index of the shape
-            sqi: the within shape index of the sequence to start from
-
-        Returns:
-            a list of the within-shape indexes of the ordered sequences 
-            a list of integers showing if the sequence is reversed or not
-
-        """
-        shape = self.shapes[shape_i]
-        squencs = self.squencs
-        counter = 1
-        order_sqs = [sqi]
-        orient = [0]
-        while counter < len(shape):
-            counter += 1
-            pi = squencs[shape[order_sqs[-1]]][__opst_i(orient[-1])]
-            nsequence = self.point_ref(pi, shape)
-            next_sqi = shape.index(nsequence)
-            next_orient = squencs[nsequence].index(pi)
-            next_orient = __opst_i(__opst_i[next_orient])
-            order_sqs.append(next_sqi)
-            orient.append(next_orient)
-        
-        return [order_sqs, orient]
-
-
     # DOMAIN GENERATION
-    def snap_intersection(self, inters_indx: int, snap_cords: Union[list,tuple]):
-        """
-        Snap an intersection point of sequences to new coordinates. Intersection point must only be at an end point of all sequences referencing it.
-
-        Args:
-            inters_indx: the point index of the intersection.
-            snap_cords: the coordinates to snap it
-
-        """
-        points = self.points
-        squences = self.squencs
-        sqindxs = self.point_ref(inters_indx)
-        for sqi in sqindxs:
-            squence = squences[sqi]
-            if squence[-1] == inters_indx:
-                points[squence] = gmt.crv_snap(points[squence], snap_cords)
-            elif squence[0] == inters_indx:
-                points[squence] = np.flip(gmt.crv_snap(np.flip(points[squence]), snap_cords))
-        self.points = points
-
-
     def layer_domain(self, squenc_i: int, thickness_func: Callable[[np.ndarray], np.ndarray], mesh_type: str = 'hex') -> int:
         """
         Generate a layer domain over a sequence. 
@@ -226,7 +161,7 @@ class MeshDomain(gmt.GeoShape):
         return len(self.shapes) - 1
 
 
-    def opface_domain(self, squenc_1: int, squenc_2: int, codirectional: bool = True, minang = np.pi/6, crvpn: int = 2) -> int:
+    def opface_domain(self, squenc_1: int, squenc_2: int, codirectional: bool = True, minang = np.pi/3, crvpn: int = 2) -> int:
         """
         Generate a structured domain from opposing face sequences.
 
@@ -243,37 +178,37 @@ class MeshDomain(gmt.GeoShape):
         """
         points = self.points
         squencs = self.squencs
-        i1 = 0
         if codirectional:
             i2 = 0
         else:
             i2 = -1
-        i1s1 = squencs[squenc_1][i1]
-        i1s2 = squencs[squenc_2][__nxt_i(i1)]
-        i1e1 = squencs[squenc_1][__opst_i(i1)]
-        i1e2 = squencs[squenc_2][__nxt_i(__opst_i(i1))]
-        i2s1 = squencs[squenc_1][i2]
-        i2s2 = squencs[squenc_2][__nxt_i(i2)]
-        i2e1 = squencs[squenc_1][__opst_i(i2)]
-        i2e2 = squencs[squenc_2][__nxt_i(__opst_i(i2))]
-        
-        ang1s = gmt.vectorangle(points[[i1s1, i1s2]], points[[i1s1, i2s1]])
-        ang2s = gmt.vectorangle(points[[i2s1, i2s2]], points[[i2s1, i1s1]])
-        ang1e = gmt.vectorangle(points[[i1e1, i1e2]], points[[i1e1, i2e1]])
-        ang2e = gmt.vectorangle(points[[i2e1, i2e2]], points[[i2e1, i1e1]])
+        i1s1 = squencs[squenc_1][0]
+        i1s2 = squencs[squenc_1][1]
+        i1e1 = squencs[squenc_1][-1]
+        i1e2 = squencs[squenc_1][-2]
+        i2s1 = squencs[squenc_2][i2]
+        i2s2 = squencs[squenc_2][gmt.nxt_i(i2)]
+        i2e1 = squencs[squenc_2][gmt.opst_i(i2)]
+        i2e2 = squencs[squenc_2][gmt.nxt_i(gmt.opst_i(i2))]
+
+        ang1s = gmt.vectorangle(points[i1s2] - points[i1s1], points[i2s1] - points[i1s1])
+        ang2s = gmt.vectorangle(points[i2s2] - points[i2s1], points[i1s1] - points[i2s1])
+        ang1e = gmt.vectorangle(points[i1e2] - points[i1e1], points[i2e1] - points[i1e1])
+        ang2e = gmt.vectorangle(points[i2e2] - points[i2e1], points[i1e1] - points[i2e1])
+
         if (abs(ang1s) < minang) or (abs(ang2s) < minang):
             p1 = points[i1s1]
             p2 = points[i2s1]
             if (abs(ang1s) < minang):
-                p2 = gmt.rotate(p2, p1, np.sign(ang1s) * (minang - abs(ang1s)))
+                p2 = gmt.rotate(p2, p1, -np.sign(ang1s) * (minang - abs(ang1s)))
             else:
-                p2 = gmt.rotate(p2, p1, np.sign(ang1s) * (minang - abs(ang2s)) / 2)
+                p2 = gmt.rotate(p2, p1, -np.sign(ang1s) * (minang - abs(ang2s)) / 2)
             lf1 = gmt.lfp(p1,p2)
             p2 = points[i2s1]
             if (abs(ang2s) < minang):
-                p2 = gmt.rotate(p1, p2, np.sign(ang2s) * (minang - abs(ang2s)))
+                p1 = gmt.rotate(p1, p2, -np.sign(ang2s) * (minang - abs(ang2s)))
             else:
-                p2 = gmt.rotate(p1, p2, np.sign(ang2s) * (minang - abs(ang1s)) / 2)
+                p1 = gmt.rotate(p1, p2, -np.sign(ang2s) * (minang - abs(ang1s)) / 2)
             lf2 = gmt.lfp(p1,p2)
             p0s = gmt.lnr_inters(lf1, lf2)
         else:
@@ -283,15 +218,15 @@ class MeshDomain(gmt.GeoShape):
             p1 = points[i1e1]
             p2 = points[i2e1]
             if (abs(ang1e) < minang):
-                p2 = gmt.rotate(p2, p1, np.sign(ang1e) * (minang - abs(ang1e)))
+                p2 = gmt.rotate(p2, p1, -np.sign(ang1e) * (minang - abs(ang1e)))
             else:
-                p2 = gmt.rotate(p2, p1, np.sign(ang1e) * (minang - abs(ang2e)) / 2)
+                p2 = gmt.rotate(p2, p1, -np.sign(ang1e) * (minang - abs(ang2e)) / 2)
             lf1 = gmt.lfp(p1,p2)
             p2 = points[i2e1]
             if (abs(ang2e) < minang):
-                p2 = gmt.rotate(p1, p2, np.sign(ang2e) * (minang - abs(ang2e)))
+                p1 = gmt.rotate(p1, p2, -np.sign(ang2e) * (minang - abs(ang2e)))
             else:
-                p2 = gmt.rotate(p1, p2, np.sign(ang2e) * (minang - abs(ang1e)) / 2)
+                p1 = gmt.rotate(p1, p2, -np.sign(ang2e) * (minang - abs(ang1e)) / 2)
             lf2 = gmt.lfp(p1,p2)
             p0e = gmt.lnr_inters(lf1, lf2)
         else:
@@ -311,9 +246,10 @@ class MeshDomain(gmt.GeoShape):
         self.points = np.vstack((points, vcs, vce))
         self.squencs = self.squencs + [sq1, sq2]
         self.shapes.append(shp)
+        self.mesh_types.append('hex')
 
 
-    def reflex_domain(self, squenc_1: int, squenc_2: int):
+    def reflex_domain(self, sq1: int, sq2: int):
         """
         Create a domain on two sequences with reflex angle. The sequences must have a common end point.
 
@@ -323,117 +259,70 @@ class MeshDomain(gmt.GeoShape):
 
         """
         points = self.points
-        squence_1 = self.squencs[squenc_1]
-        squence_2 = self.squencs[squenc_2]
-        if squence_1[-1] == squence_2[0]:
-            trv1 = points[squenc_2[-1]] - points[squenc_2[0]]
-            trv2 = points[squenc_1[0]] - points[squenc_1[-1]]
+        sequence_1 = self.squencs[sq1]
+        sequence_2 = self.squencs[sq2]
+        if sequence_1[-1] == sequence_2[0]:
+            trv1 = points[sequence_2[-1]] - points[sequence_2[0]]
+            trv2 = points[sequence_1[0]] - points[sequence_1[-1]]
             seqslice = np.s_[0:-1]
-            i1, i2 = -1, -1
-        elif squence_1[-1] == squence_2[-1]:
-            trv1 = points[squenc_2[0]] - points[squenc_2[-1]]
-            trv2 = points[squenc_1[0]] - points[squenc_1[-1]]
+            i1 = len(sequence_1) - 1
+            i2 = -1
+        elif sequence_1[-1] == sequence_2[-1]:
+            trv1 = points[sequence_2[0]] - points[sequence_2[-1]]
+            trv2 = points[sequence_1[0]] - points[sequence_1[-1]]
             seqslice = np.s_[0:-1]
-            i1, i2 = -1, 0
-        elif squence_1[0] == squence_2[0]:
-            trv1 = points[squenc_2[-1]] - points[squenc_2[0]]
-            trv2 = points[squenc_1[-1]] - points[squenc_1[0]]
+            i1 = len(sequence_1) - 1
+            i2 = 0
+        elif sequence_1[0] == sequence_2[0]:
+            trv1 = points[sequence_2[-1]] - points[sequence_2[0]]
+            trv2 = points[sequence_1[-1]] - points[sequence_1[0]]
             seqslice = np.s_[1:]
-            i1, i2 = 0, -1
-        elif squence_1[0] == squence_2[0]:
-            trv1 = points[squenc_2[0]] - points[squenc_2[-1]]
-            trv2 = points[squenc_1[-1]] - points[squenc_1[0]]
+            i1 = 0
+            i2 = -1
+        elif sequence_1[0] == sequence_2[-1]:
+            trv1 = points[sequence_2[0]] - points[sequence_2[-1]]
+            trv2 = points[sequence_1[-1]] - points[sequence_1[0]]
             seqslice = np.s_[1:]
             i1, i2 = 0, 0
 
-        self.add_crv(gmt.translate(points[squenc_1][seqslice]), trv1)
-        self.nodes.append(self.nodes[squenc_1])
-        self.squencs[-1].insert(i1, i2)
+        self.add_crv(gmt.translate(points[sequence_1][seqslice], trv1))
+        self.nodes.append(self.nodes[sq1])
+        self.squencs[-1].insert(i1, sequence_2[i2])
 
-        self.add_crv(gmt.translate(points[squenc_2][1:-1]), trv2)
-        self.nodes.append(self.nodes[squenc_2])
-        self.squencs[-1].insert(0, __opst_i(i1))
-        self.squencs[-1].append(__opst_i(i1))
+        self.add_crv(gmt.translate(points[sequence_2][1:-1], trv2))
+        self.nodes.append(self.nodes[sq2])
+        self.squencs[-1].insert((1+i2) * len(sequence_2), sequence_1[gmt.opst_i(i1)])
+        self.squencs[-1].insert(-i2 * len(sequence_2), self.squencs[-2][gmt.opst_i(i1)])
         i = len(self.squencs) - 1
-        self.shapes.append([i, squenc_1, i - 1, squenc_2])
+        self.shapes.append([i, sq1, i - 1, sq2])
+        self.mesh_types.append('hex')
 
 
-    def control_volume(self, ):
+    def rect_cvol(self, ):
         """
         Generate control volume.
 
         """
 
 
-    def trailing_domain(self, ):
+    def trailing_domain(self, tp: list, d: float, cone_width_func: Callable[[float], float], ):
         """
         Generate trailing domains.
         
         """
 
 
-    def outer_shell(self) -> list:
+    def attach_domains(self, shape_1: int, shape_2: int, squenc_1: int = None, squenc_2: int = None, deform_indx: int = 0, boundary_indx: int = 0):
         """
-        Get the outer sequences that envelop the entire domain. The sequence curves should not cross each other, and the domain should not be split into disconnected shapes.
-
-        Returns:
-            list containing indexes of the sequences
-
-        """
-        points = self.points
-        squencs = self.squencs
-        # Trace a ray from any point ([0,0]), across the domain to get any outer sequence.
-        raylen = np.max(gmt.crv_dist([[0,0]], points))
-        ray = np.array([[0,0], (points[squencs[0][0]] + points[squencs[0][1]]) / 2])
-        ray = raylen * ray / np.linalg.norm(ray[1])
-        maxdistr = 0
-        for i in range(len(squencs)):
-            itr, ptr = gmt.raytrace(points[squencs[i]], ray)
-            if len(ptr) > 0:
-                distr = np.linalg.norm(ptr[-1])
-                if distr > maxdistr:
-                    maxdistr, maxitr, maxptri, maxsqi = distr, itr[-1], ptr[-1], i
-        # Find anti-clock-wise direction
-        angs = np.sign(gmt.vectorangle(-maxptri, points[squencs[maxsqi][maxitr]] - maxptri))
-        indx = (-angs-1)/2                      # transfrom sign to first/last indx
-        n_sqi = maxsqi
-        outer_shell = []
-        while n_sqi not in outer_shell:
-            p_sqi = n_sqi
-            outer_shell.append(p_sqi)
-            indx2 = 3*indx + 1
-            pvect = points[[squencs[p_sqi][indx], squencs[p_sqi][indx2]]]
-            pi = p_sqi[indx]
-            node_sqncs = self.point_ref(pi)
-            node_sqncs.remove(p_sqi)
-            minang = 2*np.pi
-            for sqi in node_sqncs:
-                indx = squencs[sqi].index(pi)
-                indx2 = 3 * indx + 1            # transform index to second / second last
-                nvect = points[[squencs[sqi][indx], squencs[sqi][indx2]]]
-                ang = gmt.vectorangle(nvect, pvect)
-                if ang < 0:
-                    ang = 2*np.pi - ang
-                if ang < minang:
-                    minang = ang
-                    n_sqi = sqi
-            indx = - indx - 1
-
-        return outer_shell
-
-
-    def attach_domains_eq(self, shape_1: int, shape_2: int, squenc_1: int = None, squenc_2: int = None):
-        """
-        Deform two domains so that they have a common border. If the domain boundaries dont share end points, both domains are slightly deformed to
-        get a common border. If sequence indexes are not given, the function will select the most appropriate sequences instead. The selection
-        algorithm first finds which sequences do not belong to any other shapes (as to be 'free' on one side) and then finds the 
-        ones that "match" the most by measuring the distance of their end points
+        Attach two domains by deforming them as needed and merging their borders.
 
         Args:
             shape_1: the index of the first shape
             shape_2: the index of the second shape
             squenc_1: the index (within the shape) of the first shape sequence that will be patched
             squenc_2: the index (within the shape) of the second shape sequence that will be patched
+            deform_indx: if 0, both domains are deformed, if 1, only the second domain is deformed, if 2, only the first is
+            boundary_indx: if 0, both boundaries are merged into a mean, if 1 only the first boundary is used, if 2, only the second
 
         """
         points = self.points
@@ -485,8 +374,8 @@ class MeshDomain(gmt.GeoShape):
                 seq_dists[i1, i2] = min(dist1, dist2)
 
         # Get best fitting combination
-        i1 = np.argmin(np.min(seq_dists), axis=1)
-        i2 = np.argmin(np.min(seq_dists), axis=0)
+        i1 = np.argmin(np.min(seq_dists, axis=1))
+        i2 = np.argmin(np.min(seq_dists, axis=0))
         sq1 = squencs[seqis_1[i1]]
         sq2 = squencs[seqis_2[i2]]
         crv1 = points[sq1]
@@ -501,65 +390,36 @@ class MeshDomain(gmt.GeoShape):
         dist2 = np.hypot(tmpdist1, tmpdist2)
         flipindx = 0
         if dist1 > dist2:
-            crv2 = np.flip(crv2)
+            crv2 = np.flipud(crv2)
             flipindx = -1
         
-        # Find mean curve
-        if len(crv1) > 3:
-            deg1 = 3
-        else:
-            deg1 = len(crv1) - 1
-        if len(crv2) > 3:
-            deg2 = 3
-        else:
-            deg2 = len(crv2) - 1
-
-        delta = 1/(max(len(crv1), len(crv2)) + 1)
-        spline1 = gmt.fitting.interpolate_curve(crv1, deg1, centripetal=True)
-        spline2 = gmt.fitting.interpolate_curve(crv2, deg2, centripetal=True)
-        spline1.delta = delta
-        spline2.delta = delta
-        crv1 = np.array(spline1.evalpts)
-        crv2 = np.array(spline2.evalpts)
-        crvm = (crv1 + crv2)/2
+        # generate merged boundary
+        # boundary edge points
+        bps = [[(crv1[0]+crv2[0])/2, (crv1[-1]+crv2[-1])/2], [crv1[0], crv1[-1]], [crv2[0], crv2[-1]]]
+        bp = bps[deform_indx]
+        # boundary curve
+        crvbs = [gmt.mean_crv(crv1, crv2), crv1, crv2]
+        crvb = crvbs[boundary_indx]
+        # merged curve
+        crvm = gmt.crv_fit2p(crvb, bp[0], bp[1])
 
         # Check for common ends
         common_end1 = sq1[0] == sq2[flipindx]
-        common_end2 = sq1[-1] == sq2[- flipindx - 1]
+        common_end2 = sq1[-1] == sq2[gmt.opst_i(flipindx)]
 
         # Snap all conected curves to new points, if needed
         if not common_end1:
             psnap = crvm[0]
-            pi = sq1[0]
-            seqref = self.point_ref(pi)
-            for seqi in seqref:
-                if seqi[-1] == pi:
-                    points[squencs[seqi]] = gmt.crv_snap(points[squencs[seqi]], psnap)
-                elif seqi[0] == pi:
-                    points[squencs[seqi]] = np.flipud(gmt.crv_snap(np.flipud(points[squencs[seqi]]), psnap))
-            pi = sq2[flipindx]
-            seqref = self.point_ref(pi)
-            for seqi in seqref:
-                if seqi[-1] == pi:
-                    points[squencs[seqi]] = gmt.crv_snap(points[squencs[seqi]], psnap)
-                elif seqi[0] == pi:
-                    points[squencs[seqi]] = np.flipud(gmt.crv_snap(np.flipud(points[squencs[seqi]]), psnap))  
+            pi1s = sq1[0]
+            pi2s = sq2[flipindx]
+            self.snap_intersection(pi1s, psnap)
+            self.snap_intersection(pi2s, psnap)
         if not common_end2:
             psnap = crvm[-1]
-            pi = sq1[-1]
-            seqref = self.point_ref(pi)
-            for seqi in seqref:
-                if seqi[-1] == pi:
-                    points[squencs[seqi]] = gmt.crv_snap(points[squencs[seqi]], psnap)
-                elif seqi[0] == pi:
-                    points[squencs[seqi]] = np.flipud(gmt.crv_snap(np.flipud(points[squencs[seqi]]), psnap))
-            pi = sq2[- flipindx - 1]
-            seqref = self.point_ref(pi)
-            for seqi in seqref:
-                if seqi[-1] == pi:
-                    points[squencs[seqi]] = gmt.crv_snap(points[squencs[seqi]], psnap)
-                elif seqi[0] == pi:
-                    points[squencs[seqi]] = np.flipud(gmt.crv_snap(np.flipud(points[squencs[seqi]]), psnap))
+            pi1e = sq1[-1]
+            pi2e = sq2[gmt.opst_i(flipindx)]
+            self.snap_intersection(pi1e, psnap)
+            self.snap_intersection(pi2e, psnap)
 
         # Add new sequence
         squencs.append(list(range(len(points), len(points) + len(crvm))))
@@ -567,154 +427,51 @@ class MeshDomain(gmt.GeoShape):
         self.points = points
         self.squencs = squencs
 
+        # Take note of points to remove after replacing
+        remi = [sq1[0], sq1[-1], sq2[flipindx], sq2[gmt.opst_i(flipindx)]]
+
+        # Replace start and end points with new sequence start and end
+        self.replace_point(sq1[0], self.squencs[-1][0])
+        self.replace_point(sq1[-1], self.squencs[-1][-1])
+        self.replace_point(sq2[flipindx], self.squencs[-1][0])
+        self.replace_point(sq2[gmt.opst_i(flipindx)], self.squencs[-1][-1])
+
+        # remove edge points
+        self.squencs.insert(0,remi)
+        for i in remi:
+            self.remove_point(self.squencs[0][0])
+        self.squencs.pop(0)
+
+        # create shape with new sequences to keep track of them because the code is spaghetti
+        self.shapes.insert(0, [seqis_1[i1], seqis_2[i2]])
+
+        # Remove all old sequence points except the start and end points
+        for sq in self.shapes[0]:
+            for i in range(len(self.squencs[sq]) - 2):
+                self.remove_point(self.squencs[sq][1])
+
+        # Get max node number sequence and use these nodes for new sequence
+        if (self.nodes[seqis_1[i1]] != None) and (self.nodes[seqis_2[i2]] != None):
+            nn = np.argmax([len(self.nodes[seqis_1[i1]]), len(self.nodes[seqis_2[i2]])])
+            new_nodes = [self.nodes[seqis_1[i1]], self.nodes[seqis_2[i2]]][nn]
+        elif self.nodes[seqis_1[i1]] != None:
+            new_nodes = self.nodes[seqis_1[i1]]
+        elif self.nodes[seqis_2[i2]] != None:
+            new_nodes = self.nodes[seqis_1[i1]]
+        else:
+            new_nodes = None
+
+        self.nodes.append(new_nodes)
+
         # Remove curves and place new sequence into shapes
-        seqi = len(self.squencs) - 1
-        shi1, inserindxs1 = self.remove_sequence(seqis_1)
-        shi2, inserindxs2 = self.remove_sequence(seqis_2)
+        seqi = len(self.squencs) - 3
+        shi1, inserindxs1 = self.remove_sequence(self.shapes[0][0])
+        shi2, inserindxs2 = self.remove_sequence(self.shapes[0][0])
         shi = shi1 + shi2
         insertindxs = inserindxs1 + inserindxs2
         for i in range(len(shi)):
             self.shapes[shi[i]].insert(insertindxs[i], seqi)
-
-
-    def attach_domains_uneq(self, shape_m: int, shape_s: int, squenc_m: int = None, squenc_s: int = None):
-        """
-        Deform the 'slave' domain so it has a common border with the undeformed 'master' domain. If sequence indexes are not given,
-        the function will select the most appropriate sequences instead. The selection algorithm first finds which sequences do not
-        belong to any other shapes (as to be 'free' on one side) and then finds the ones that "match" the most by measuring the
-        distance of their end points
-
-        Args:
-            shape_m: the index of the master shape, this shape will remain (mostly) unchanged
-            shape_s: the index of the slave shape, this shape will change a bit more
-            squenc_m: the index (within the shape) of the master shape sequence that will be patched
-            squenc_s: the index (within the shape) of the slave shape sequence that will be patched
-
-        """
-        points = self.points
-        squencs = self.squencs
-        shapes = self.shapes
-        # Get all viable sequences, if not given as arguments
-        if squenc_m == None:
-            tmpshapes = list(shapes)
-            tmpshapes.pop(shape_m)
-            tmpshapes = np.concatenate(tmpshapes)
-            seqis_m = list(shapes[shape_m])
-            i = 0
-            while i < len(seqis_m):
-                if seqis_m[i] in tmpshapes:
-                    seqis_m.pop(i)
-                else:
-                    i += 1
-        else:
-            seqis_m = [squenc_m]
-
-        if squenc_s == None:
-            tmpshapes = list(shapes)
-            tmpshapes.pop(shape_s)
-            tmpshapes = np.concatenate(tmpshapes)
-            seqis_s = list(shapes[shape_s])
-            i = 0
-            while i < len(seqis_s):
-                if seqis_s[i] in tmpshapes:
-                    seqis_2.pop(i)
-                else:
-                    i += 1
-        else:
-            seqis_s = [squenc_s]
-
-        # Gather sequence combinations
-        seq_dists = np.zeros((len(seqis_m), len(seqis_s)))
-        for i1 in range(len(seqis_m)):
-            pm1 = points[squencs[seqis_m[i1]][0]]
-            pm2 = points[squencs[seqis_m[i1]][-1]]
-            for i2 in range(len(seqis_s)):
-                ps1 = points[squencs[seqis_s[i2]][0]]
-                ps2 = points[squencs[seqis_s[i2]][-1]]
-                tmpdist1 = np.hypot(pm1[0] - ps1[0], pm1[1] - ps1[1])
-                tmpdist2 = np.hypot(pm2[0] - ps2[0], pm2[1] - ps2[1])
-                dist1 = np.hypot(tmpdist1, tmpdist2)
-                tmpdist1 = np.hypot(pm1[0] - ps2[0], pm1[1] - ps2[1])
-                tmpdist2 = np.hypot(pm2[0] - ps1[0], pm2[1] - ps1[1])
-                dist2 = np.hypot(tmpdist1, tmpdist2)
-                seq_dists[i1, i2] = min(dist1, dist2)
-
-        # Get best fitting combination
-        ima = np.argmin(np.min(seq_dists), axis=1)
-        isl = np.argmin(np.min(seq_dists), axis=0)
-        sqm = squencs[seqis_m[ima]]
-        sqs = squencs[seqis_s[isl]]
-        crvm = points[sqm]
-        crvs = points[sqs]
-
-        # Check and flip if needed
-        tmpdist1 = np.hypot(crvm[0,0] - crvs[0,0], crvm[0,1] - crvs[0,1])
-        tmpdist2 = np.hypot(crvm[-1,0] - crvs[-1,0], crvm[-1,1] - crvs[-1,1])
-        dist1 = np.hypot(tmpdist1, tmpdist2)
-        tmpdist1 = np.hypot(crvm[0,0] - crvs[-1,0], crvm[0,1] - crvs[-1,1])
-        tmpdist2 = np.hypot(crvm[-1,0] - crvs[0,0], crvm[-1,1] - crvs[0,1])
-        dist2 = np.hypot(tmpdist1, tmpdist2)
-        flipindx = 0
-        if dist1 > dist2:
-            crvs = np.flip(crvs)
-            flipindx = -1
-
-        # Find mean curve
-        if len(crvm) > 3:
-            degm = 3
-        else:
-            degm = len(crvm) - 1
-        if len(crvs) > 3:
-            degs = 3
-        else:
-            degs = len(crvs) - 1
-
-        delta = 1/(max(len(crvm), len(crvs)) + 1)
-        splinem = gmt.fitting.interpolate_curve(crvm, degs, centripetal=True)
-        splines = gmt.fitting.interpolate_curve(crvs, degm, centripetal=True)
-        splinem.delta = delta
-        splines.delta = delta
-        crvm = np.array(splinem.evalpts)
-        crvs = gmt.crv_fit2p(splines.evalpts, crvm[0], crvm[-1])
-        crvn = (crvm + crvs) / 2
-
-        # Check for common ends
-        common_end1 = sqm[0] == sqs[flipindx]
-        common_end2 = sqm[-1] == sqs[- flipindx - 1]
-
-        # Snap all conected curves to new points, if needed
-        psnap = crvm[0]
-        if not common_end1:
-            pi = sqs[flipindx]
-            seqref = self.point_ref(pi)
-            for seqi in seqref:
-                if seqi[-1] == pi:
-                    points[squencs[seqi]] = gmt.crv_snap(points[squencs[seqi]], psnap)
-                elif seqi[0] == pi:
-                    points[squencs[seqi]] = np.flipud(gmt.crv_snap(np.flipud(points[squencs[seqi]]), psnap))  
-        if not common_end2:
-            pi = sqs[- flipindx - 1]
-            seqref = self.point_ref(pi)
-            for seqi in seqref:
-                if seqi[-1] == pi:
-                    points[squencs[seqi]] = gmt.crv_snap(points[squencs[seqi]], psnap)
-                elif seqi[0] == pi:
-                    points[squencs[seqi]] = np.flipud(gmt.crv_snap(np.flipud(points[squencs[seqi]]), psnap))
-
-        # Add new sequence
-        squencs.append(list(range(len(points), len(points) + len(crvn))))
-        points = np.vstack((points, crvn))
-        self.points = points
-        self.squencs = squencs
-
-        # Remove curves and place new sequence into shapes
-        seqi = len(self.squencs) - 1
-        shi1, inserindxs1 = self.remove_sequence(seqis_m)
-        shi2, inserindxs2 = self.remove_sequence(seqis_s)
-        shi = shi1 + shi2
-        insertindxs = inserindxs1 + inserindxs2
-        for i in range(len(shi)):
-            self.shapes[shi[i]].insert(insertindxs[i], seqi)
+        self.shapes.pop(0)
 
 
     def split_hex_domain(self, shape_i: int, splt_seq: int, splt_fract: float):
@@ -732,7 +489,7 @@ class MeshDomain(gmt.GeoShape):
         shape = self.shapes[shape_i]
         # figure it out 
         order, orient = self.shape_clarify(shape_i, splt_seq)
-        sqs1 = splt_seq
+        sqs1 = shape[splt_seq]
         sqs2 = shape[order[2]]
         sqv1 = shape[order[1]]
         sqv2 = shape[order[3]]
@@ -740,13 +497,13 @@ class MeshDomain(gmt.GeoShape):
         sequence_s1 = squencs[sqs1]
         sequence_s2 = squencs[sqs2]
         sequence_v1 = squencs[sqv1]
-        sequence_v2 = squencs[sqv1]
+        sequence_v2 = squencs[sqv2]
         if orient[2] == 0:
             sequence_s2.reverse()
         if orient[1] == -1:
             sequence_v1.reverse()
         if orient[3] == 0:
-            sequence_v1.reverse()
+            sequence_v2.reverse()
 
         crv1len = gmt.crv_len(points[squencs[sqs1]])
         i1 = np.argmin(np.abs(crv1len/crv1len[-1] - splt_fract))
@@ -765,7 +522,7 @@ class MeshDomain(gmt.GeoShape):
         # get vertical sequence
         crvv1 = gmt.crv_fit2p(points[squencs[sqv1]], points[sequence_s1[i1]], points[sequence_s2[i2]])
         crvv2 = gmt.crv_fit2p(points[squencs[sqv2]], points[sequence_s1[i1]], points[sequence_s2[i2]])
-        sqv0 = gmt.mean_crv(crvv2, crvv1, splt_fract)[1:-1]
+        sqv0 = gmt.mean_crv(crvv2, crvv1, 1 - splt_fract)[1:-1]
         self.add_crv(sqv0)
         self.nodes.append(self.nodes[sqv1])
         self.squencs[-1].insert(0, sequence_s1[i1])
@@ -773,36 +530,34 @@ class MeshDomain(gmt.GeoShape):
 
         # split sequences
         if sqs1 > sqs2:
-            ia = 0
+            is1 = 0
         else:
-            ia = -1
+            is1 = -1
 
-        self.split_sequence(sqs1, i1)
-        self.split_sequence(sqs2 + ia, i2)
+        # create fake shapes to keep track of where the fuck the sequences move because my code is so spaghetti i wanna pull my eyes out, but i dont have time to fix it, fuuuuuuuuuuuuuuuuuuuu
+        self.shapes.insert(0, [sqs2])
+        self.shapes.insert(0, [sqv1, sqv2])
+
+        self.split_sequence(sqs1, [i1])
+        self.split_sequence(self.shapes[1][0], [i2])
+
+        sqv1 = self.shapes[0][0]
+        sqv2 = self.shapes[0][1]
+
+        # remove fake shapes
+        self.shapes.pop(0), self.shapes.pop(0)
 
         # create shapes
         self.shapes.pop(shape_i)
         si = len(self.squencs) - 1
-        shape1 = [sqv1, si-3, si-4, si-1]
-        shape2 = [sqv2, si-2, si-4, si]
+        shape1 = [sqv2, si-3, si-4, si-1]
+        shape2 = [sqv1, si-2, si-4, si]
         self.shapes.append(shape1)
         self.shapes.append(shape2)
 
-
-    def prox_point_index(self, point: Union[list,tuple,np.ndarray], squenc_i: int) -> int:
-        """
-        Get the index of a point on the sequence, closest to the point given.
-
-        Args:
-            point: [x, y] coordinates of point
-            squenc_i: the index of the sequence to investigate
-        
-        Returns:
-            the sequence index of the closest point
-
-        """
-        crv = self.points[self.squencs[squenc_i]]
-        return np.argmin(np.hypot(crv[:,0] - point[0], crv[:,1] - point[1]))
+        # mesh types
+        self.mesh_types.pop(shape_i)
+        self.mesh_types = self.mesh_types + ['hex','hex']
 
 
     # MESH DENSITY
@@ -815,14 +570,6 @@ class MeshDomain(gmt.GeoShape):
         """
         
         """
-
-
-# def flip(self):
-#     """
-#     Flip the s11 and s12 with the s21 and s22.
-#     """
-#     self.s11, self.s21 = self.s21, self.s11
-#     self.s12, self.s22 = self.s22, self.s12
 
 
 def gs2md(gs: gmt.GeoShape) -> MeshDomain:

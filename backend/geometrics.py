@@ -55,6 +55,22 @@ def bisect_solver(funct: Callable[[float], float], y: float, seg: Union[list,tup
     return seg[0] - (seg[1]-seg[0]) * y1 / (y2-y1)
 
 
+def nxt_i(x: int) -> int:
+    """ Get 1 for indx 0 and -2 for indx -1. """
+    if x == 0:
+        return 1
+    else:
+        return x - 1
+
+
+def opst_i(x: int) -> int:
+    """ Get -1 for indx 0 and 0 for indx -1. """
+    if x == 0:
+        return -1
+    else:
+        return 0
+
+
 def lfp(p1, p2):
     """
     Get the polynomial factors of the line passign through two points.
@@ -1824,6 +1840,38 @@ class GeoShape:
         return 'Points: ' + str(self.points) + '\nSequences: ' + str(self.squencs) + '\nShapes: ' + str(self.shapes)
 
 
+    def plot(self, lines: bool = True, indxs: bool = True, marks: bool = True, show: bool = True) -> None:
+        """
+        Plot the geometric shape.
+
+        Args:
+            lines (bool): If True, the lines of the curves will be plotted
+            indxs (bool): If True, the points will be numbered according to their index in the point matrix
+            marks (bool): If True, the points will be marked with dots
+            show (bool): If True, the plot will be shown after plotting
+        
+        """
+        points = self.points
+        squencs = self.squencs
+
+        if lines:
+            for squence in squencs:
+                plt.plot(points[squence,0], points[squence,1], '-')
+        
+        if marks:
+            plt.plot(points[:,0], points[:,1], '.r')
+        
+        if indxs:
+            for i in range(np.shape(points)[0]):
+                plt.text(points[i,0], points[i,1], i)
+
+        plt.grid(visible=True)
+        plt.axis('equal')
+
+        if show:
+            plt.show()
+
+
     def transform(self, center: Union[list,tuple,np.ndarray], theta: float, sf: Union[list,tuple,np.ndarray], tv: Union[list,tuple,np.ndarray]) -> list:
         """
         Transform the GeoShape's points.
@@ -1900,15 +1948,49 @@ class GeoShape:
 
         """
         # edit sequences
-        for squence in self.squencs:
-            squence = np.array(squence)
-            greaterindxs = np.nonzero(squence > point_i)[0]
-            equalindxs = np.nonzero(squence == point_i)[0]
-            squence[greaterindxs] += 1
-            squence = np.delete(squence, equalindxs)
-            squence = list(squence)
+        for i in range(len(self.squencs)):
+            sequence = np.array(self.squencs[i])
+            greaterindxs = np.nonzero(sequence > point_i)[0]
+            equalindxs = np.nonzero(sequence == point_i)[0]
+            sequence[greaterindxs] -= 1
+            sequence = np.delete(sequence, equalindxs)
+            self.squencs[i] = list(sequence)
         # remove point
         self.points = np.delete(self.points, point_i, axis=0)
+
+
+    def replace_point(self, del_i: int, new_i: int, sql: Union[list,tuple] = []):
+        """
+        Replace a point index in specified sequences with another.
+
+        Args:
+            del_i: index to be replaced
+            new_i: index that will replace
+            sql: contains the indexes of the sequences that will be researched
+
+        """
+        reflist = self.point_ref(del_i, sql)
+        for i in range(len(reflist)):
+            seq = np.array(self.squencs[reflist[i]])
+            seq[seq==del_i] = new_i
+            self.squencs[reflist[i]] = list(seq)
+
+
+    def replace_sequence(self, del_i: int, new_i: int, spl: Union[list,tuple] = []):
+        """
+        Replace a point index in specified sequences with another.
+
+        Args:
+            del_i: index to be replaced
+            new_i: index that will replace
+            sql: contains the indexes of the sequences that will be researched
+
+        """
+        reflist = self.sequence_ref(del_i, spl)
+        for i in range(len(reflist)):
+            shape = np.array(self.shapes[reflist[i]])
+            shape[shape==del_i] = new_i
+            self.shapes[reflist[i]] = list(shape)
 
 
     def split_sequence(self, squence_i: int, div_i: Union[list,tuple]) -> list:
@@ -1952,21 +2034,22 @@ class GeoShape:
         return seqindxs
 
 
-    def squence_ref(self, squence_i: int, spl: Union[list,tuple] = []) -> list:
+    def sequence_ref(self, squence_i: int, spl: Union[list,tuple] = []) -> list:
         """
         Get all the shape indexes that reference the indexed sequence.
 
         Args:
             squence_i: the index of the sequence
+            spl: contains the indexes of the shapes that will be researched
 
         Returns:
             list containing all shape indexes referencing the sequence
 
         """
         reflist = []
+        shapes = self.shapes
         if len(spl) == 0:
             spl = list(range(len(self.shapes)))
-        shapes = self.shapes[spl]
         for i in spl:
             if squence_i in shapes[i]:
                 reflist.append(i)
@@ -1979,18 +2062,28 @@ class GeoShape:
 
         Args:
             point_i: the index of the point
+            sql: contains the indexes of the sequences that will be researched
 
         Returns:
             list containing all sequence indexes referencing the point
 
         """
         reflist = []
+        squencs = self.squencs
         if len(sql) == 0:
             sql = list(range(len(self.squencs)))
-        squencs = self.squencs[sql]
+        # print('********')
+        # print(sql)
+        # print(self.squencs)
+        # print(point_i)
         for i in sql:
+            # print(i)
+            # print(squencs[i])
             if point_i in squencs[i]:
+                # print('this i')
                 reflist.append(i)
+        # print(reflist)
+        # print('********')
         return reflist
 
 
@@ -2005,7 +2098,240 @@ class GeoShape:
         i1 = len(self.points)
         i2 = i1 + len(crv)
         self.squencs.append(list(range(i1,i2)))
+        if i1 == 0:
+            self.points = np.array([], dtype=np.int64).reshape(0,2)
         self.points = np.vstack((self.points, crv))
+
+
+    def clear_duplicates(self, tol: float):
+        """
+        Clear all duplicate points, sequences and shapes from the GeoShape.
+
+        Args:
+            tol: the maximum distance two points must have to be considered the same point.
+
+        """
+        # Points
+        i = 0 
+        while i < len(self.points) - 1:
+            j = i + 1
+            while j < len(self.points):
+                if comcheck(self.points[i], self.points[j], tol):
+                    self.replace_point(j, i)
+                    self.remove_point(j)
+                else:
+                    j += 1
+            i += 1
+        # Sequences
+        squencs = self.squencs
+        for squence in squencs:
+            i = 0
+            while i < len(squence) - 1:
+                if squence[i] == squence[i-1]:
+                    squence.pop(i)
+                else:
+                    i += 1
+
+        i = 0
+        while i < len(squencs) - 1:
+            j = i + 1
+            while j < len(squencs):
+                if (squencs[i] == squencs[j]) or (squencs[i] == list(np.flip(squencs[j]))):
+                    self.replace_sequence(j, i)
+                    self.remove_sequence(j)
+                else:
+                    j += 1
+            i += 1
+        # Shapes
+        shapes = self.shapes
+        for shape in shapes:
+            i = 0
+            while i < len(shape) - 1:
+                if shape[i] == shape[i-1]:
+                    shape.pop(i)
+                else:
+                    i += 1
+
+        i = 0
+        while i < len(shapes) - 1:
+            j = i + 1
+            while j < len(shapes):
+                if (shapes[i] == shapes[j]) or (shapes[i] == list(np.flip(shapes[j]))):
+                    self.shapes.pop(j)
+                else:
+                    j += 1
+            i += 1
+
+
+    def clear_empties(self, length1squences: bool = True):
+        """
+        Remove empty sequences and shapes.
+
+        Args:
+            length1squences: if True, also remove sequences with just one index in them
+
+        """
+        if length1squences:
+            limit = 2
+        else:
+            limit = 1
+
+        squencs = self.squencs
+        i = 0
+        while i < len(squencs):
+            if len(squencs[i]) < limit:
+                self.remove_sequence(i)
+            else:
+                i += 1
+
+        shapes = self.shapes
+        i = 0
+        while i < len(shapes):
+            if len(shapes[i]) < limit:
+                shapes.pop(i)
+            else:
+                i += 1
+
+
+    def clear_unused(self):
+        """
+        Remove unused points and sequences.
+        """
+        i = 0
+        while i < len(self.points):
+            if len(self.point_ref(i)) == 0:
+                self.remove_point(i)
+            else:
+                i += 1
+        i = 0
+        while i < len(self.squencs):
+            if len(self.sequence_ref(i)) == 0:
+                self.remove_sequence(i)
+            else:
+                i += 1
+
+
+    def shape_clarify(self, shape_i: int, sqi: int = 0) -> list:
+        """
+        Get order and orientation of all sequences of a proper shape.
+
+        Args:
+            shape_i: the index of the shape
+            sqi: the within shape index of the sequence to start from
+
+        Returns:
+            a list of the within-shape indexes of the ordered sequences 
+            a list of integers showing if the sequence is reversed or not
+
+        """
+        shape = self.shapes[shape_i]
+        squencs = self.squencs
+        counter = 1
+        order_sqs = [sqi]
+        orient = [0]
+        while counter < len(shape):
+            counter += 1
+            pi = squencs[shape[order_sqs[-1]]][opst_i(orient[-1])]
+            reflist = self.point_ref(pi, shape)
+            reflist.remove(shape[order_sqs[-1]])
+            nsequence = reflist[0]
+            next_sqi = shape.index(nsequence)
+            next_orient = squencs[nsequence].index(pi)
+            next_orient = opst_i(opst_i(next_orient))
+            order_sqs.append(next_sqi)
+            orient.append(next_orient)
+        
+        return [order_sqs, orient]
+
+
+    def outer_shell(self) -> list:
+        """
+        Get the outer sequences that envelop the entire domain. The sequence curves should not cross each other, and the domain should not be split into disconnected shapes.
+
+        Returns:
+            list containing indexes of the sequences
+
+        """
+        points = self.points
+        squencs = self.squencs
+        # Trace a ray from any point ([0,0]), across the domain to get any outer sequence.
+        raylen = np.max(crv_dist([[0,0]], points))
+        ray = np.array([[0,0], (points[squencs[0][0]] + points[squencs[0][1]]) / 2])
+        ray = raylen * ray / np.linalg.norm(ray[1])
+        maxdistr = 0
+        for i in range(len(squencs)):
+            itr, ptr = raytrace(points[squencs[i]], ray)
+            if len(ptr) > 0:
+                distr = np.linalg.norm(ptr[-1])
+                if distr > maxdistr:
+                    maxdistr, maxitr, maxptri, maxsqi = distr, itr[-1], ptr[-1], i
+        # Find anti-clock-wise direction
+        angs = np.sign(vectorangle(points[squencs[maxsqi][maxitr]] - maxptri, -maxptri))
+        indx = int((-angs-1)/2)                     # transfrom sign to first/last indx
+        n_sqi = maxsqi
+        outer_shell = []
+        while n_sqi not in outer_shell:
+            p_sqi = n_sqi
+            outer_shell.append(p_sqi)
+            indx2 = nxt_i(indx)
+            pvect = points[squencs[p_sqi][indx2]] - points[squencs[p_sqi][indx]]
+            pi = squencs[p_sqi][indx]
+            node_sqncs = self.point_ref(pi)
+            node_sqncs.remove(p_sqi)
+            minang = 2*np.pi
+            for sqi in node_sqncs:
+                _indx = squencs[sqi].index(pi)
+                _indx2 = nxt_i(_indx)           # transform index to second / second last
+                nvect = points[squencs[sqi][_indx2]] - points[squencs[sqi][_indx]]
+                ang = vectorangle(nvect, pvect)
+                if ang < 0:
+                    ang = 2*np.pi + ang
+                if ang < minang:
+                    minang = ang
+                    n_sqi = sqi
+                    indx = _indx
+            indx = opst_i(indx)
+
+        return outer_shell
+
+
+    def prox_point_index(self, point: Union[list,tuple,np.ndarray], squenc_i: int) -> int:
+        """
+        Get the index of a point on the sequence, closest to the point given.
+
+        Args:
+            point: [x, y] coordinates of point
+            squenc_i: the index of the sequence to investigate
+        
+        Returns:
+            the sequence index of the closest point
+
+        """
+        crv = self.points[self.squencs[squenc_i]]
+        return np.argmin(np.hypot(crv[:,0] - point[0], crv[:,1] - point[1]))
+
+
+    def snap_intersection(self, inters_indx: int, snap_cords: Union[list,tuple]):
+        """
+        Snap an intersection point of sequences to new coordinates. Intersection point must only be at an end point of all sequences referencing it.
+
+        Args:
+            inters_indx: the point index of the intersection.
+            snap_cords: the coordinates to snap it
+
+        """
+        points = self.points
+        prevcords = np.array(points[inters_indx])
+        squences = self.squencs
+        sqindxs = self.point_ref(inters_indx)
+        for sqi in sqindxs:
+            points[inters_indx] = prevcords
+            squence = squences[sqi]
+            if squence[-1] == inters_indx:
+                points[squence] = crv_snap(points[squence], snap_cords)
+            elif squence[0] == inters_indx:
+                points[squence] = np.flipud(crv_snap(np.flipud(points[squence]), snap_cords))
+        self.points = points
 
 
 def gs_merge(gsl: list) -> GeoShape:
@@ -2128,35 +2454,3 @@ def cross_check(gs: GeoShape) -> bool:
             if np.any(Path(polygons[i]).contains_points(polygons[j])):
                 return True
     return False
-
-
-def gs_plot(gs: GeoShape, lines: bool = True, indxs: bool = True, marks: bool = True, show: bool = True) -> None:
-    """
-    Plot the geometric shape.
-
-    Args:
-        lines (bool): If True, the lines of the curves will be plotted
-        indxs (bool): If True, the points will be numbered according to their index in the point matrix
-        marks (bool): If True, the points will be marked with dots
-        show (bool): If True, the plot will be shown after plotting
-    
-    """
-    points = gs.points
-    squencs = gs.squencs
-
-    if lines:
-        for squence in squencs:
-            plt.plot(points[squence,0], points[squence,1], '-')
-    
-    if marks:
-        plt.plot(points[:,0], points[:,1], '.r')
-    
-    if indxs:
-        for i in range(np.shape(points)[0]):
-            plt.text(points[i,0], points[i,1], i)
-
-    plt.grid(visible=True)
-    plt.axis('equal')
-
-    if show:
-        plt.show()
