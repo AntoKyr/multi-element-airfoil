@@ -423,7 +423,7 @@ def project(p: Union[list,tuple,np.ndarray], lf: Union[list,tuple,np.ndarray]) -
         [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the projected point coordinates
 
     """
-    lfv = np.zeros((len(p), 2))
+    lfv = np.zeros(2)
     lfv[0] = -1/lf[0]
     lfv[1] = p[1] - lfv[0]*p[0]
     return lnr_inters(lf, lfv)
@@ -2072,18 +2072,9 @@ class GeoShape:
         squencs = self.squencs
         if len(sql) == 0:
             sql = list(range(len(self.squencs)))
-        # print('********')
-        # print(sql)
-        # print(self.squencs)
-        # print(point_i)
         for i in sql:
-            # print(i)
-            # print(squencs[i])
             if point_i in squencs[i]:
-                # print('this i')
                 reflist.append(i)
-        # print(reflist)
-        # print('********')
         return reflist
 
 
@@ -2332,6 +2323,27 @@ class GeoShape:
             elif squence[0] == inters_indx:
                 points[squence] = np.flipud(crv_snap(np.flipud(points[squence]), snap_cords))
         self.points = points
+
+
+    def multipoint_ref(self, point_i: Union[list, tuple], sql: Union[list,tuple] = []):
+        """
+        Get all sequences of the GeoShape that contain all of given point indexes.
+        """
+        refset = []
+        for pi in point_i:
+            reflist = self.point_ref(pi, sql)
+            refset = refset + reflist
+        refset = set(refset)
+        reflist = []
+        for sqi in refset:
+            refbool = True
+            for pi in point_i:
+                if pi not in self.squencs[sqi]:
+                    refbool = False
+                    break
+            if refbool:
+                reflist.append(sqi)
+        return reflist
 
 
 def gs_merge(gsl: list) -> GeoShape:

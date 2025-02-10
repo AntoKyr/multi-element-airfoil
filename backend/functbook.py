@@ -89,5 +89,36 @@ def gen_ray_crit(angtol: float, maxdist: float, mindist: float = 0) -> Callable[
     return crit_func
 
 
+def gen_trail_width(f: float, p: float = 1) -> Callable[[np.ndarray],np.ndarray]:
+    """
+    Generate a simple trail width function.
+
+    Args:
+        f: width factor
+        p: width power
+    
+    Returns:
+        trail width function
+    
+    """
+    def trail_width_func(c):
+        crvlen = gmt.crv_len(c)
+        return - gmt.parallcrv(c) * f * np.transpose([crvlen,crvlen])**p
+    return trail_width_func
+
+
+def gen_sin_trail_height(f) -> Callable[[float], float]:
+    """
+    Generate a sin based trail height function.
+
+    Args:
+        f: height factor
+
+    """
+    def trail_height_func(ang):
+        return f * np.sin(ang)
+    return trail_height_func
+
+
 # Function book
 

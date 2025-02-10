@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import geometrics as gmt
-import meshdomdiv as mdd
+import domain as mdd
 import foilgeneral as flg
 import randsectgen as rsg
 import functbook
@@ -307,6 +307,22 @@ if False: # attach domains test
     md.attach_domains(0, 1, deform_indx=1, boundary_indx=1)
     print(md)
     md.plot()
+
+
+if True: # trail domain and control volume test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    md = mdd.gs2md(gs)
+    pi = [0,1,2,3]
+    md.trailing_domain(pi, 200, functbook.gen_trail_width(0.3, 0.8), functbook.gen_sin_trail_height(70))
+    md.rect_cvol(200, 70)
+    print(md)
+    md.plot()
+
 
 
 
