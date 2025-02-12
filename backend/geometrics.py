@@ -1814,6 +1814,21 @@ def crv_fillet(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray
     return [r, c, crcl_data]
 
 
+def inpolyg(p: Union[list,tuple,np.ndarray], polyg: Union[list,tuple,np.ndarray]) -> bool:
+    """
+    Check if a point resides inside a polygon.
+    
+    Args:
+        p: [x, y] coordinates of point
+        polyg: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the polygons vertexes
+    
+    Return:
+        True if its inside
+
+    """
+    return Path(polyg).contains_point(p)
+
+
 # GEOSHAPE CLASS
 class GeoShape:
     """
@@ -1978,7 +1993,7 @@ class GeoShape:
 
     def replace_sequence(self, del_i: int, new_i: int, spl: Union[list,tuple] = []):
         """
-        Replace a point index in specified sequences with another.
+        Replace a sequence index in specified shapes with another.
 
         Args:
             del_i: index to be replaced
@@ -2233,6 +2248,45 @@ class GeoShape:
             orient.append(next_orient)
         
         return [order_sqs, orient]
+
+
+    def fol_sequence(self, sqi, indx, maxb: bool = True) -> int:
+        """
+        Get the next sequence with maximum / minimum angle to the given one.
+
+        Args:
+            sqi: sequence index
+            indx: the within-sequence point index of the end point
+            maxb: if True get the next sequence with maximum angle, else, the one with minimum angle
+
+        Returns:
+            index of next sequence
+        
+        """
+        squencs = self.squencs
+        points = self.points
+        indx2 = nxt_i(indx)
+        pvect = points[squencs[sqi][indx]] - points[squencs[sqi][indx2]]
+        pi = squencs[sqi][indx]
+        node_sqncs = self.point_ref(pi)
+        node_sqncs.remove(sqi)
+        if maxb:
+            limang = 0
+            boolcheck = _opdict['>']
+        else:
+            limang = 2*np.pi
+            boolcheck = _opdict['<']
+        for sqi in node_sqncs:
+            _indx = squencs[sqi].index(pi)
+            _indx2 = nxt_i(_indx)           # transform index to second / second last
+            nvect = points[squencs[sqi][_indx2]] - points[squencs[sqi][_indx]]
+            ang = vectorangle(nvect, pvect)
+            if ang < 0:
+                ang = 2*np.pi + ang
+            if boolcheck(ang, limang):
+                limang = ang
+                n_sqi = sqi
+        return n_sqi
 
 
     def outer_shell(self) -> list:

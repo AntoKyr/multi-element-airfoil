@@ -5,7 +5,6 @@
 import numpy as np
 import geometrics as gmt
 from typing import Union, Callable
-from matplotlib import pyplot as plt
 
 # MESH DOMAIN CLASS
 class MeshDomain(gmt.GeoShape):
@@ -405,15 +404,100 @@ class MeshDomain(gmt.GeoShape):
             self.mesh_types.append('hex')
 
 
-    def attach_domains(self, shape_1: int, shape_2: int, squenc_1: int = None, squenc_2: int = None, deform_indx: int = 0, boundary_indx: int = 0):
+    # DOMAIN MANIPULATION
+    def swap_border(self, shape_i: int, squenc_b: int, squenc_i: int = None):
         """
-        Attach two domains by deforming them as needed and merging their borders.
+        Swap a domain's old border sequence with a new one.
+
+        Args:
+            shape_i: the index of the shape
+            squenc_b: the index of the sequence that will replace the old one
+            squenc_i: the index of the sequence that will be replaced, if not given the most suitable will be picked
+
+        """
+        points = self.points
+        squencs = self.squencs
+        shapes = self.shapes
+        # Get all viable sequences, if not given as argument
+        if squenc_i == None:
+            seqis = list(shapes[shape_i])
+            i = 0
+            while i < len(seqis):
+                if len(self.sequence_ref(seqis[i])) > 1:
+                    seqis.pop(i)
+                else:
+                    i += 1
+        else:
+            seqis = [squenc_i]
+        
+        # Gather sequence combinations
+        seq_dists = np.zeros(len(seqis))
+        p11 = points[squencs[squenc_b][0]]
+        p12 = points[squencs[squenc_b][-1]]
+        for i in range(len(seqis)):
+            p21 = points[squencs[seqis[i]][0]]
+            p22 = points[squencs[seqis[i]][-1]]
+            tmpdist1 = np.hypot(p11[0] - p21[0], p11[1] - p21[1])
+            tmpdist2 = np.hypot(p12[0] - p22[0], p12[1] - p22[1])
+            dist1 = np.hypot(tmpdist1, tmpdist2)
+            tmpdist1 = np.hypot(p11[0] - p22[0], p11[1] - p22[1])
+            tmpdist2 = np.hypot(p12[0] - p21[0], p12[1] - p21[1])
+            dist2 = np.hypot(tmpdist1, tmpdist2)
+            seq_dists[i] = min(dist1, dist2)
+
+        # Get best fitting combination
+        i = np.argmin(seq_dists)
+        sq1 = squencs[seqis[i]]
+        sq2 = squencs[squenc_b]
+        crv1 = points[sq1]
+        crv2 = points[sq2]
+
+        # Check if flip is needed
+        tmpdist1 = np.hypot(crv1[0,0] - crv2[0,0], crv1[0,1] - crv2[0,1])
+        tmpdist2 = np.hypot(crv1[-1,0] - crv2[-1,0], crv1[-1,1] - crv2[-1,1])
+        dist1 = np.hypot(tmpdist1, tmpdist2)
+        tmpdist1 = np.hypot(crv1[0,0] - crv2[-1,0], crv1[0,1] - crv2[-1,1])
+        tmpdist2 = np.hypot(crv1[-1,0] - crv2[0,0], crv1[-1,1] - crv2[0,1])
+        dist2 = np.hypot(tmpdist1, tmpdist2)
+        if dist1 > dist2:
+            i0 = sq2[-1]
+            i1 = sq2[0]
+        else:
+            i0 = sq2[0]
+            i1 = sq2[-1]
+        
+        self.snap_intersection(sq1[0], points[i0])
+        self.snap_intersection(sq1[-1], points[i1])
+
+        # replace stuff
+        pi0, pi1 = sq1[0], sq1[-1]
+        self.replace_point(pi0, i0)
+        self.replace_point(pi1, i1)
+        self.replace_sequence(seqis[i], squenc_b, [shape_i])
+
+        # clean up
+        if pi0 == i0:
+            self.squencs[seqis[i]].pop(0)
+        else:
+            self.squencs[seqis[i]][0] = pi0
+        if pi1 == i1:
+            self.squencs[seqis[i]].pop(-1)
+        else:
+            self.squencs[seqis[i]][-1] = pi1
+        for j in range(len(self.squencs[seqis[i]])):
+            self.remove_point(self.squencs[seqis[i]][0])
+        self.remove_sequence(seqis[i])
+
+
+    def stitch_domains(self, shape_1: int, shape_2: int, squenc_1: int = None, squenc_2: int = None, deform_indx: int = 0, boundary_indx: int = 0):
+        """
+        Attach two "parallel" domains by deforming them as needed and merging their borders.
 
         Args:
             shape_1: the index of the first shape
             shape_2: the index of the second shape
-            squenc_1: the index (within the shape) of the first shape sequence that will be patched
-            squenc_2: the index (within the shape) of the second shape sequence that will be patched
+            squenc_1: the index of the first shape sequence that will be patched, if not given the most suitable will be picked
+            squenc_2: the index of the second shape sequence that will be patched, if not given the most suitable will be picked
             deform_indx: if 0, both domains are deformed, if 1, only the second domain is deformed, if 2, only the first is
             boundary_indx: if 0, both boundaries are merged into a mean, if 1 only the first boundary is used, if 2, only the second
 
@@ -423,13 +507,10 @@ class MeshDomain(gmt.GeoShape):
         shapes = self.shapes
         # Get all viable sequences, if not given as arguments
         if squenc_1 == None:
-            tmpshapes = list(shapes)
-            tmpshapes.pop(shape_1)
-            tmpshapes = np.concatenate(tmpshapes)
             seqis_1 = list(shapes[shape_1])
             i = 0
             while i < len(seqis_1):
-                if seqis_1[i] in tmpshapes:
+                if len(self.sequence_ref(seqis_1[i])) > 1:
                     seqis_1.pop(i)
                 else:
                     i += 1
@@ -437,13 +518,10 @@ class MeshDomain(gmt.GeoShape):
             seqis_1 = [squenc_1]
 
         if squenc_2 == None:
-            tmpshapes = list(shapes)
-            tmpshapes.pop(shape_2)
-            tmpshapes = np.concatenate(tmpshapes)
             seqis_2 = list(shapes[shape_2])
             i = 0
             while i < len(seqis_2):
-                if seqis_2[i] in tmpshapes:
+                if len(self.sequence_ref(seqis_2[i])) > 1:
                     seqis_2.pop(i)
                 else:
                     i += 1
@@ -531,7 +609,7 @@ class MeshDomain(gmt.GeoShape):
 
         # remove edge points
         self.squencs.insert(0,remi)
-        for i in remi:
+        while len(self.squencs[0]) > 0:
             self.remove_point(self.squencs[0][0])
         self.squencs.pop(0)
 
@@ -540,7 +618,7 @@ class MeshDomain(gmt.GeoShape):
 
         # Remove all old sequence points except the start and end points
         for sq in self.shapes[0]:
-            for i in range(len(self.squencs[sq]) - 2):
+            while len(self.squencs[sq]) > 2:
                 self.remove_point(self.squencs[sq][1])
 
         # Get max node number sequence and use these nodes for new sequence
@@ -593,10 +671,16 @@ class MeshDomain(gmt.GeoShape):
         sequence_v2 = squencs[sqv2]
         if orient[2] == 0:
             sequence_s2.reverse()
+            if self.nodes[sqs2] != None:
+                self.nodes[sqs2].reverse()
         if orient[1] == -1:
             sequence_v1.reverse()
+            if self.nodes[sqv1] != None:
+                self.nodes[sqv1].reverse()
         if orient[3] == 0:
             sequence_v2.reverse()
+            if self.nodes[sqv2] != None:
+                self.nodes[sqv2].reverse()
 
         crv1len = gmt.crv_len(points[squencs[sqs1]])
         i1 = np.argmin(np.abs(crv1len/crv1len[-1] - splt_fract))
@@ -645,12 +729,113 @@ class MeshDomain(gmt.GeoShape):
         si = len(self.squencs) - 1
         shape1 = [sqv2, si-3, si-4, si-1]
         shape2 = [sqv1, si-2, si-4, si]
-        self.shapes.append(shape1)
+        self.shapes.insert(shape_i, shape1)      # we put this here to not mess with shape indexing
         self.shapes.append(shape2)
 
         # mesh types
         self.mesh_types.pop(shape_i)
         self.mesh_types = self.mesh_types + ['hex','hex']
+
+
+    def ortho_fit(self, shape_v: int, shape_s: int, squenc_v: int = None, squenc_s: int = None, deform_indx: int = 0, boundary_indx: int = 0) -> bool:
+        """
+        Attach two orthogonal hex domains by splitting one, and attaching one part to the other. Both domains must have one common vertex point for this to work.
+
+        Args:
+            shape_v: the index of the first shape, this shape wont be split
+            shape_s: the index of the second shape, this shape will be split
+            squenc_1: the index (within the shape) of the first shape sequence that will be patched, if not given the most suitable will be picked
+            squenc_2: the index (within the shape) of the second shape sequence that will be patched, if not given the most suitable will be picked
+            boundary_indx: if 0, both boundaries are merged into a mean, if 1 only the first boundary is used, if 2, only the boundary of the split domaon is used
+        
+        Returns:
+            True if the fit succeeds
+
+        """
+        points = self.points
+        squencs = self.squencs
+        shapes = self.shapes
+        shs = shapes[shape_s]
+        shv = shapes[shape_v]
+
+        # Get all vertexes and find common
+        order_sqs_v, orient_v = self.shape_clarify(shape_v)
+        order_sqs_s, orient_s = self.shape_clarify(shape_s)
+        vertex_v, vertex_s = [], []
+        for i in range(len(order_sqs_v)):
+            vertex_v.append(squencs[shv[order_sqs_v[i]]][orient_v[i]])
+        for i in range(len(order_sqs_s)):
+            vertex_s.append(squencs[shs[order_sqs_v[i]]][orient_s[i]])
+        for vv in vertex_v:
+            if vv in vertex_s:
+                cvi = vv
+
+        # construct polygon
+        polyg = np.array([], dtype=np.int64).reshape(0,2)
+        for i in range(len(order_sqs_s)):
+            curve = points[squencs[shs[order_sqs_s[i]]]]
+            if orient_s[i] == -1:
+                curve = np.flipud(curve)
+                polyg = np.vstack((polyg, curve))
+
+        # check failure conditions
+        # if more than one vertex inside shape_s polygon: fail
+        vertex_v.remove(cvi)
+        vertin = []
+        for vv in vertex_v:
+            if gmt.inpolyg(points[vv], polyg):
+                vertin.append(vv)
+        if len(vertin) > 1:
+            return False
+        # if both or no sequences that have the common point, are also used in other shapes, without the sequence being given in args: fail
+        if squenc_v == None:
+            seqis_v = self.point_ref(cvi, shv)
+            i = 0
+            while i < len(seqis_v):
+                if len(self.sequence_ref(seqis_v[i])) > 1:
+                    seqis_v.pop(i)
+                else:
+                    i += 1
+            if len(seqis_v) != 1:
+                return False
+            else:
+                seqi_v = seqis_v[0]
+        else:
+            seqi_v = squenc_v
+
+        if squenc_s == None:
+            seqis_s = self.point_ref(cvi, shs)
+            i = 0
+            while i < len(seqis_s):
+                if len(self.sequence_ref(seqis_s[i])) > 1:
+                    seqis_s.pop(i)
+                else:
+                    i += 1
+            if len(seqis_s) != 1:
+                return False
+            else:
+                seqi_s = seqis_s[0]
+        else:
+            seqi_s = squenc_s
+
+        # get closest point indx and calculate split fraction
+        edgeindx = gmt.opst_i(squencs[seqi_v].index(cvi))
+        proxindx = self.prox_point_index(points[squencs[seqi_v]][edgeindx], seqi_s)
+        crvlen = gmt.crv_len(points[squencs[seqi_s]])
+        splt_fract = crvlen[proxindx] / crvlen[-1]
+
+        # find sequence orientation
+        cvi_sindx = squencs[seqi_s].index(cvi)
+        if cvi_sindx == 0:
+            patch_i = shape_s
+        else:
+            patch_i = len(shapes)
+
+        # cut n stitch
+        self.split_hex_domain(shape_s, shs.index(seqi_s), splt_fract)
+        self.stitch_domains(shape_v, patch_i, deform_indx=deform_indx, boundary_indx=boundary_indx)
+
+        return True
 
 
     # MESH DENSITY

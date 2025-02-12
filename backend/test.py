@@ -274,7 +274,7 @@ if False: # reflex domain and split hex domain test
     gs.clear_duplicates(5)
     md = mdd.gs2md(gs)
     md.nodes = [[0,0.33,0.66,1], [0,0.2,0.4,0.6,0.8,1], [0,0.33,0.66,1], [0,0.2,0.4,0.6,0.8,1]]
-    md.shapes = [[0, 1, 2, 3]]
+    md.shapes = [[0, 1, 2, 3], [4,5,6,7]]
     md.mesh_types = ['hex']
     md.plot()
     md.split_hex_domain(0,0,0.3)
@@ -302,14 +302,14 @@ if False: # attach domains test
     for curv in curvs:
         gs.add_crv(curv)
     gs.clear_duplicates(5)
-    gs.shapes = [[0,1,2], [3,4,5,6]]
+    gs.shapes = [[0,1,2,3], [4,5,6,7], [5,8,9]]
     md = mdd.gs2md(gs)
-    md.attach_domains(0, 1, deform_indx=1, boundary_indx=1)
+    md.stitch_domains(0, 1, deform_indx=1, boundary_indx=1)
     print(md)
     md.plot()
 
 
-if True: # trail domain and control volume test
+if False: # trail domain and control volume test
     plt.axis([-100, 100, -100, 100])
     curvs = draw_curves()
     gs = gmt.GeoShape([],[],[])
@@ -324,7 +324,41 @@ if True: # trail domain and control volume test
     md.plot()
 
 
+if False: # swap border test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    gs.shapes = [[0,1,2,3]]
+    md = mdd.gs2md(gs)
+    md.swap_border(0, 4)
+    print(md)
+    md.plot()
 
 
+if False: # fol_sequence test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    print(gs.fol_sequence(0,-1, False))
+
+
+if True: # ortho_fit test
+    plt.axis([-100, 100, -100, 100])
+    curvs = draw_curves()
+    gs = gmt.GeoShape([],[],[])
+    for curv in curvs:
+        gs.add_crv(curv)
+    gs.clear_duplicates(5)
+    gs.shapes = [[0,1,2,3], [4,5,6,7], [0,4,8]]
+    md = mdd.gs2md(gs)
+    md.ortho_fit(0, 1, deform_indx=1, boundary_indx=1)
+    md.plot()
+    print(md)
 
 
