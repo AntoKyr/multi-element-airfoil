@@ -477,7 +477,7 @@ def zap_flap(afl: flg.Airfoil, divx = [60, 45], cf = None, dtheta = None, dx = N
     t = max(gmt.crv_ln_cut(flg.thickness(afl), 50, '>')[:,1])
     cf = _nonerand(cf, 'beta33', [15, 40])
     dx = _nonerand(dx, 'beta33', [0.4*cf , 0.8 * cf])
-    dtheta = np.radians(_nonerand(dtheta, 'beta33', [15, 70]))
+    dtheta = np.radians(_nonerand(dtheta, 'beta33', [35, 70]))
     gapb = _nonerand(None, 'int', [0,1])
     gap = _nonerand(gap, 'beta33', [gapb*0.25 * dx**0.5, gapb*0.5 * dx**0.5])
     ft = 1.5/t

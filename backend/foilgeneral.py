@@ -66,41 +66,6 @@ class Airfoil(gmt.GeoShape):
 
 
 # SOME GENERAL FUNCTIONS
-def element_sort(gs: gmt.GeoShape) -> gmt.GeoShape:
-    """
-    Sort the shapes of a GeoShape repressenting a multi element airfoil, from trailing to leading edge.
-
-    Args:
-        gs: GeoShape to be sorted
-    
-    Returns:
-        Sorted GeoShape
-
-    """
-    shapes = gs.shapes
-    squencs = gs.squencs
-    points = gs.points
-    # Get all leading and trailing edges
-    lel = []
-    tel = []
-    for shape in shapes:
-        te = points[squencs[shape[0]][0]]
-        # Get all points of shape
-        shapoints = points[np.concatenate(list(squencs[i] for i in shape))]
-        le = shapoints[np.argmax(np.hypot(shapoints[:,0] - te[0], shapoints[:,1] - te[1]))]
-        tel.append(te)
-        lel.append(le)
-
-    tel, lel = np.array(tel), np.array(lel)
-    dists = gmt.crv_dist(tel, lel)
-    lte = tel[np.argmax(np.max(dists, axis=1))]
-    charvec = np.sum(lel - tel, axis=0)
-    sortvals = (lel - np.repeat(lte[np.newaxis,:], len(lel), axis=0)) @ charvec
-    sortindxs = np.argsort(sortvals)
-    shapes = list(shapes[i] for i in sortindxs)
-    return gmt.GeoShape(points, squencs, shapes)
-
-
 def leading_edge_indx(afl: Airfoil) -> int:
     """
     Return the index of the leading edge point of an airfoil.

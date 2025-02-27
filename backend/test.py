@@ -7,6 +7,7 @@ import randsectgen as rsg
 import functbook
 import curvegen as crvgen
 import highliftdev as hld
+import domain as dm
 
 
 def draw_crcl(p0, p1):
@@ -125,7 +126,7 @@ if False: # face_merge test
     for facepair in facepairlist:
         face1 = facepair.face1
         face2 = facepair.face2
-        if mdd.crossing_boundaries(c1, c2, facepair):
+        if mdd.crosscheck(c1, c2, facepair):
             plt.plot(c1[face1,0], c1[face1,1], '*g')
             plt.plot(c2[face2,0], c2[face2,1], '*g')
             plt.plot([c1[face1[0], 0], c2[face2[0], 0]], [c1[face1[0], 1], c2[face2[0], 1]], 'g')
@@ -348,7 +349,7 @@ if False: # fol_sequence test
     print(gs.fol_sequence(0,-1, False))
 
 
-if True: # ortho_fit test
+if False: # ortho_fit test
     plt.axis([-100, 100, -100, 100])
     curvs = draw_curves()
     gs = gmt.GeoShape([],[],[])
@@ -360,5 +361,47 @@ if True: # ortho_fit test
     md.ortho_fit(0, 1, deform_indx=1, boundary_indx=1)
     md.plot()
     print(md)
+
+
+if False: # curvature test
+    plt.axis([-100, 100, -100, 100])
+    curv = draw_curves()[0]
+    blt = 1 / -min(gmt.crv_curvature(curv))
+    bl = curv + gmt.parallcrv(curv) * blt
+    plt.plot(curv[:,0], curv[:,1], 'b')
+    plt.plot(bl[:,0], bl[:,1], 'r')
+    plt.plot(bl[:,0], bl[:,1], '.g')
+    plt.axis('equal')
+    plt.grid()
+    plt.show()
+    
+
+if True: # test
+    afld = flg.read_ord()
+
+    _ = list(afld.keys())
+    namearr = [[_[6], _[1], _[0]], [_[8], _[7], _[3]], [_[2], _[4], _[5]]]
+    le_func = rsg.bare_le
+    te_func = rsg.fowler_1slot
+
+    def hld_test(name: str):
+        # try:
+        afl = afld[name]
+        aflcrv = flg.foilpatch(le_func(afl), te_func(afl))
+        gsl = gmt.crv2gs(aflcrv)
+        gs = gmt.gs_merge(gsl)
+        gs = dm.element_sort(gs)
+        gs = dm.simple_section_prep(gs, 1, 1, 1.2)
+        outers = gs.simple_boundary_layer_gen(1, 3)
+        gs.simple_controlvol_gen(outers, 1500, 500, 10)
+        gs.simple_trailpoint_gen(200, 300, 1500, 1, 3, 30)
+        print(gs)
+        gs.plot()
+        plt.title(name)
+        # except:
+        #     print('*cough cough*')
+        
+    hld_test(namearr[1][1])
+
 
 

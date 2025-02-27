@@ -4,41 +4,38 @@
 
 import numpy as np
 import geometrics as gmt
-from typing import Union, Callable
+import functbook as fnb
+import domain as dm
 
 
-
-# Helper functions
-
-
-def foil_relations(gs: gmt.GeoShape) -> list:
+# Helper function
+def getrings(md: dm.MeshDomain, shape_i: int) -> list:
     """
-    Find the relative positions of each element in an airfoil section.
+    Get curve rings of all the sequences that make a shape.
 
     Args:
-        gs: the airfoil section
+        md: MeshDomain
+        shape_i: shape index
 
     Returns:
-
+        list containing all the curve lists of the sequence indexes
     
     """
+    sqlist = list(md.shapes[shape_i])
+    # while sqlist not empty
+    # next sequence = first sequence
+    # while next sequence not in ringlist
+    # add it, get next sequence
+    # after break: add ringlist to seqlist
+    # return
 
 
-
-def conv_mesher(gs: gmt.GeoShape):
+def automesher():
     """
-    Generate high quality mesh domains for conventional multi element airfoil sections.
-
-
-    
+    The thing that does the thing.
     """
 
 
-def all_mesher():
-    """
-    Generate lesser quality mesh domains for any and all sections.
-    
-    """
 
 
 

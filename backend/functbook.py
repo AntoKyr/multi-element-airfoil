@@ -71,8 +71,8 @@ def gen_ray_crit(angtol: float, maxdist: float, mindist: float = 0) -> Callable[
     """
     Generate a basic ray trace criterion function for opposing_faces functions.
 
-    Arg:
-        angtol: the maximum difference of the angle from vertical, that ecaluates the criterion function
+    Args:
+        angtol: the maximum difference of the angle from vertical, that evaluates the criterion function
         maxdist: the maximum between ray casting point and traced point, that evaluates the criterion function
         mindist: the minimum between ray casting point and traced point, that evaluates the criterion function
     
@@ -120,5 +120,18 @@ def gen_sin_trail_height(f) -> Callable[[float], float]:
     return trail_height_func
 
 
-# Function book
+def gen_polysin_trail_height(f) -> Callable[[float], float]:
+    """
+    Generate a sin polynomial based trail height function.
 
+    Args:
+        f: height factor
+
+    """
+    def trail_height_func(ang):
+        return f * (np.sin(ang) - np.sin(ang)**2)
+    return trail_height_func
+
+
+# Function book
+# there's nothing here, there never was

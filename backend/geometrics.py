@@ -991,7 +991,8 @@ def crv_curvature(c: Union[list,tuple,np.ndarray]) -> np.ndarray:
     cang = vectorangle(c[2:] - c[1:-1], c[1:-1] - c[0:-2])
     cang = np.append(np.insert(cang, 0, -cang[0]), -cang[-1])
     slen = np.hypot(c[1:,0] - c[0:-1,0], c[1:,1] - c[0:-1,1])
-    return (cang[0:-1] + cang[1:]) / (2 * slen)
+    cang = np.min([cang[0:-1], cang[1:]], axis = 0)
+    return cang / slen
 
 
 # SINGLE CURVE MORPHOLOGY
@@ -2105,7 +2106,7 @@ class GeoShape:
         i2 = i1 + len(crv)
         self.squencs.append(list(range(i1,i2)))
         if i1 == 0:
-            self.points = np.array([], dtype=np.int64).reshape(0,2)
+            self.points = np.array([], dtype=float).reshape(0,2)
         self.points = np.vstack((self.points, crv))
 
 
@@ -2250,7 +2251,7 @@ class GeoShape:
         return [order_sqs, orient]
 
 
-    def fol_sequence(self, sqi, indx, maxb: bool = True) -> int:
+    def fol_sequence(self, sqi, indx, maxb: bool = True) -> list:
         """
         Get the next sequence with maximum / minimum angle to the given one.
 
@@ -2260,7 +2261,7 @@ class GeoShape:
             maxb: if True get the next sequence with maximum angle, else, the one with minimum angle
 
         Returns:
-            index of next sequence
+            contains index of next sequence and angle between them
         
         """
         squencs = self.squencs
@@ -2286,30 +2287,32 @@ class GeoShape:
             if boolcheck(ang, limang):
                 limang = ang
                 n_sqi = sqi
-        return n_sqi
+        return [n_sqi, limang]
 
 
-    def outer_shell(self) -> list:
+    def outer_shell(self, sql: list = None) -> list:
         """
         Get the outer sequences that envelop the entire domain. The sequence curves should not cross each other, and the domain should not be split into disconnected shapes.
 
         Returns:
-            list containing indexes of the sequences
+            list containing indexes of the sequences that will be first scanned
 
         """
         points = self.points
         squencs = self.squencs
+        if sql == None:
+            sql = list(range(len(squencs)))
         # Trace a ray from any point ([0,0]), across the domain to get any outer sequence.
         raylen = np.max(crv_dist([[0,0]], points))
-        ray = np.array([[0,0], (points[squencs[0][0]] + points[squencs[0][1]]) / 2])
+        ray = np.array([[0,0], (points[squencs[sql[0]][0]] + points[squencs[sql[0]][1]]) / 2])
         ray = raylen * ray / np.linalg.norm(ray[1])
         maxdistr = 0
-        for i in range(len(squencs)):
-            itr, ptr = raytrace(points[squencs[i]], ray)
+        for i in range(len(sql)):
+            itr, ptr = raytrace(points[squencs[sql[i]]], ray)
             if len(ptr) > 0:
                 distr = np.linalg.norm(ptr[-1])
                 if distr > maxdistr:
-                    maxdistr, maxitr, maxptri, maxsqi = distr, itr[-1], ptr[-1], i
+                    maxdistr, maxitr, maxptri, maxsqi = distr, itr[-1], ptr[-1], sql[i]
         # Find anti-clock-wise direction
         angs = np.sign(vectorangle(points[squencs[maxsqi][maxitr]] - maxptri, -maxptri))
         indx = int((-angs-1)/2)                     # transfrom sign to first/last indx
@@ -2338,6 +2341,34 @@ class GeoShape:
             indx = opst_i(indx)
 
         return outer_shell
+
+
+    def connected_squencs(self, sqi: int) -> list:
+        """
+        Get all interconnected sequences starting from the given.
+
+        Args:
+            sqi: the index of the sequence
+        
+        Returns:
+            contains all interconnected sequence indices 
+        
+        """
+        nextseq = [sqi]
+        prevseq = []
+
+        while len(nextseq) > 0:
+            pi1 = self.squencs[nextseq[0]][0]
+            pi2 = self.squencs[nextseq[0]][-1]
+            reflist = self.point_ref(pi1) + self.point_ref(pi2)
+            for ref in reflist:
+                if ref not in prevseq:
+                    prevseq.append(ref)
+                    if ref not in nextseq:
+                        nextseq.append(ref)
+            nextseq.pop(0)
+        
+        return prevseq
 
 
     def prox_point_index(self, point: Union[list,tuple,np.ndarray], squenc_i: int) -> int:
@@ -2412,7 +2443,7 @@ def gs_merge(gsl: list) -> GeoShape:
 
     """
     # Assemble all the shapes
-    points = np.array([], dtype=np.int64).reshape(0,2)
+    points = np.array([], dtype=float).reshape(0,2)
     squencs = []
     shapes = []
     i = 0

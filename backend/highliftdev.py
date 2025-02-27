@@ -415,7 +415,7 @@ def te_slot(sides: list, divx: list, cfs: float, cfp: float, cgenfunc: str, cgen
 
     """
     # Curve point number constant
-    n = 15
+    n = 30
     cfs = 100 - cfs
     cfp = 100 - cfp
     # Surface split point
@@ -523,7 +523,7 @@ def flap(sides: list, cfs: float, cfp: float, cgenfunc: str, cgenarg: Union[Call
 
     """
     # Curve point number constant
-    n = 15
+    n = 30
     cfs = 100 - cfs
     cfp = 100 - cfp
     # Surface split point
