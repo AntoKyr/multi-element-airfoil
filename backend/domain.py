@@ -1026,6 +1026,7 @@ class MeshDomain(gmt.GeoShape):
         self.spacing = self.spacing + spacings
         i = len(self.squencs)
         self.squencs = self.squencs + seqs
+        self.nodes = self.nodes + [None, None, None, None]
         # Generate da big domain
         self.shapes.append([i, i+1, i+2, i+3] + outer_shells)
         self.mesh_types.append('tri')

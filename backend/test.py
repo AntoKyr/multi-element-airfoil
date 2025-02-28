@@ -8,6 +8,7 @@ import functbook
 import curvegen as crvgen
 import highliftdev as hld
 import domain as dm
+import automesher
 
 
 def draw_crcl(p0, p1):
@@ -395,11 +396,9 @@ if True: # test
         outers = gs.simple_boundary_layer_gen(1, 3)
         gs.simple_controlvol_gen(outers, 1500, 500, 10)
         gs.simple_trailpoint_gen(200, 300, 1500, 1, 3, 30)
-        print(gs)
-        gs.plot()
-        plt.title(name)
-        # except:
-        #     print('*cough cough*')
+        # print(gs)
+        # gs.plot()
+        automesher.mesh(gs, name, fin=True)
         
     hld_test(namearr[1][1])
 
