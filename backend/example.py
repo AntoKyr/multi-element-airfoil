@@ -34,7 +34,7 @@ gs = gmt.gs_merge(gsl)
 gs = dm.element_sort(gs)
 
 # prepare section for meshing
-gs = dm.simple_section_prep(gs, 10, 1.001, 1.5)
+gs = dm.simple_section_prep(gs, 10, 0.95, 0.5)
 # generate boundary layers
 outers = gs.simple_boundary_layer_gen(1, 50)
 # generate trail

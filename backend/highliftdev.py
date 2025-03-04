@@ -415,7 +415,7 @@ def te_slot(sides: list, divx: list, cfs: float, cfp: float, cgenfunc: str, cgen
 
     """
     # Curve point number constant
-    n = 30
+    n = 50
     cfs = 100 - cfs
     cfp = 100 - cfp
     # Surface split point
@@ -442,7 +442,10 @@ def te_slot(sides: list, divx: list, cfs: float, cfp: float, cgenfunc: str, cgen
 
     # Fillet leading edge curve and presure side
     if r>0:
-        return [[gmt.crv_fillet(pre_curve, te_curve, r, [1, 1])[1], suc_curve]]
+        pp = pre_curve[-1]
+        filletcurve = gmt.crv_fillet(pre_curve, te_curve, r, [1.5, 1.5])[1]
+        ppi = np.argmin(gmt.crv_dist(filletcurve, [pp]))
+        return [[filletcurve[0:ppi+1], filletcurve[ppi:], suc_curve]]
     elif r==0:
         if gmt.comcheck(pre_curve[-1], te_curve[-1], 0.01):
             te_curve = np.flipud(te_curve)
@@ -523,7 +526,7 @@ def flap(sides: list, cfs: float, cfp: float, cgenfunc: str, cgenarg: Union[Call
 
     """
     # Curve point number constant
-    n = 30
+    n = 50
     cfs = 100 - cfs
     cfp = 100 - cfp
     # Surface split point
