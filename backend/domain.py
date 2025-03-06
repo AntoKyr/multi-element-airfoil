@@ -605,6 +605,39 @@ class MeshDomain(gmt.GeoShape):
         self.mesh_types.append('tri')
 
 
+    def simple_prox_layer(self, proxd: float, sp: float):
+        """
+        Generate proximity layer points and spacings.
+
+        Args:
+            proxd: the distance of the proximity layer
+            sp: spacing of proximity layer
+        
+        """
+        clf = 0.95
+        vdshapes = np.nonzero(np.array(self.mesh_types)=='void')[0]
+        proxp = np.array([], dtype=float).reshape(0,2)
+        shapp = np.array([], dtype=float).reshape(0,2)
+        for i in vdshapes:
+            shape = self.shapes[i]
+            pi = []
+            for sqi in shape:
+                pi = pi + self.squencs[sqi][0:-1]
+            # calc prox layer
+            shapp = np.vstack((shapp, self.points[pi]))
+            proxp = np.vstack((proxp, self.points[pi] + gmt.parallcrv(self.points[pi]) * proxd))
+        
+        # remove all points closer to the shapes than they should be
+        dists = gmt.crv_dist(proxp, shapp)
+        mindists = np.min(dists, axis=1)
+        vali = np.nonzero(mindists >= clf * proxd)[0]
+        proxp = proxp[vali]
+        # add points and spacings
+        spac = list(np.full(len(proxp), sp))
+        self.points = np.vstack((self.points, proxp))
+        self.spacing = self.spacing + spac
+
+
 def element_sort(gs: gmt.GeoShape) -> gmt.GeoShape:
     """
     Sort the shapes of a GeoShape repressenting a multi element airfoil, from trailing to leading edge.
