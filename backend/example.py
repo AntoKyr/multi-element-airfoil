@@ -38,10 +38,10 @@ gs = dm.simple_section_prep(gs, 10, 0.95, 0.5)
 # generate boundary layers
 outers = gs.simple_boundary_layer_gen(1, 50)
 # generate higher density regions
-gs.simple_trailpoint_gen(300, 300, 1500, 0.2, 5, 50)
+gs.simple_trailpoint_gen(50, 70, 1500, 0.1, 20, 80, 5)
 gs.simple_prox_layer(20, 0.5)
 # generate control volume
-gs.simple_controlvol_gen(outers, 1500, 500, 40)
+gs.simple_controlvol_gen(outers, 1500, 500, 60)
 
 # print the domain data and plot it locally
 print(gs)

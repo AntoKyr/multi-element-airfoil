@@ -501,7 +501,7 @@ class MeshDomain(gmt.GeoShape):
         return outer_shell
 
 
-    def simple_trailpoint_gen(self, hfl: float, hft: float, xd: float, ss: float, es: float, nn: int):
+    def simple_trailpoint_gen(self, hfl: float, hft: float, xd: float, ss: float, es: float, nn: int, sppo: float):
         """
         Generate trail points and spacings.
 
@@ -513,59 +513,59 @@ class MeshDomain(gmt.GeoShape):
             ss: min spacing at the start of the trail
             es: max spacing at the end of the trail
             nn: number of points
+            sppo: spacing power, influences the spacing distribution of the trail points
 
         """
         # get all shapes with positive void coeffiecient
         pvci = np.nonzero(np.array(self.mesh_types) == 'void')[0]
-        vshapes = []
+        vdshapes = []
         for i in pvci:
-            vshapes.append(self.shapes[i])
+            vdshapes.append(self.shapes[i])
 
-        # Get trail vectors and points
-        tpi0 = self.squencs[vshapes[0][0]][0]
-        tpi1 = self.squencs[vshapes[0][0]][1]
-        tpi2 = self.squencs[vshapes[0][-1]][-2]
-        v1 = self.points[tpi1] - self.points[tpi0]
-        v2 = self.points[tpi2] - self.points[tpi0]
-        tvec1 = - gmt.bisector_vct(v1, v2)
-        p11 = self.points[tpi0]
-        tpi0 = self.squencs[vshapes[-1][0]][0]
-        tpi1 = self.squencs[vshapes[-1][0]][1]
-        tpi2 = self.squencs[vshapes[-1][-1]][-2]
-        v1 = self.points[tpi1] - self.points[tpi0]
-        v2 = self.points[tpi2] - self.points[tpi0]
-        tvec2 = - gmt.bisector_vct(v1, v2)
-        # get le
-        tp = self.points[tpi0]
-        pi = []
-        for sqi in vshapes[-1]:
-            pi += self.squencs[sqi][0:-1]
-        p2i = pi[np.argmax(np.hypot(self.points[pi,0] - tp[0], self.points[pi,1] - tp[1]))]
-        p21 = self.points[p2i]
+        for shape in vdshapes:
+            # Get trail vectors and points
+            tpi0 = self.squencs[shape[0]][0]
+            tpi1 = self.squencs[shape[0]][1]
+            tpi2 = self.squencs[shape[-1]][-2]
+            v1 = self.points[tpi1] - self.points[tpi0]
+            v2 = self.points[tpi2] - self.points[tpi0]
+            tvec = - gmt.bisector_vct(v1, v2)
+            p1 = self.points[tpi0]
+            # get trail height
+            th1 = fnb.gen_polysin_trail_height(hft)(gmt.vectorangle(tvec))
+            # get all points
+            p2 = [xd, th1 + p1[1]]
+            lf11 = [0, th1 + p1[1]]
+            lf12 = gmt.lfp(p1, p1+tvec)
+            p0 = gmt.lnr_inters(lf11, lf12)
+            # build trail array
+            points = gmt.bezier([p1, p0, p2])(np.linspace(0,1,nn+1)[1:])
+            # calculate spacing
+            spacings = list(np.linspace(ss**(1/sppo), es**(1/sppo), nn)**sppo)
+            # save
+            self.points = np.vstack((self.points, points))
+            self.spacing = self.spacing + spacings
 
-        # get trail heights
-        th1 = fnb.gen_sin_trail_height(hft)(gmt.vectorangle(tvec1))
-        th2 = fnb.gen_polysin_trail_height(hfl)(gmt.vectorangle(tvec2))
-
-        # get all points
-        p12 = [xd, th1 + p11[1]]
-        p22 = [xd, th2 + p21[1]]
-        lf11 = [0, th1 + p11[1]]
-        lf21 = [0, th2 + p21[1]]
-        lf12 = gmt.lfp(p11, p11+tvec1)
-        lf22 = gmt.lfp(p21, p21+tvec2)
-        p10 = gmt.lnr_inters(lf11, lf12)
-        p20 = gmt.lnr_inters(lf21, lf22)
-
-        # build trail arrays
-        points1 = gmt.bezier([p11, p10, p12])(np.linspace(0,1,nn+1)[1:])
-        points2 = gmt.bezier([p21, p20, p22])(np.linspace(0,1,nn+1)[1:])
-        spacings1 = list(np.linspace(ss,es,nn))
-        spacings2 = list(np.linspace(ss,es,nn))
-
-        # save
-        self.points = np.vstack((self.points, points1, points2))
-        self.spacing = self.spacing + spacings1 + spacings2
+            if abs(gmt.vectorangle(tvec)) > np.pi/6:
+                # get le
+                tp = self.points[tpi0]
+                pi = []
+                for sqi in shape:
+                    pi += self.squencs[sqi][0:-1]
+                p2i = pi[np.argmax(np.hypot(self.points[pi,0] - tp[0], self.points[pi,1] - tp[1]))]
+                p1 = self.points[p2i]
+                # get trail height
+                th2 = fnb.gen_polysin_trail_height(hfl)(gmt.vectorangle(tvec))
+                # get all points
+                p2 = [xd, th2 + p1[1]]
+                lf21 = [0, th2 + p1[1]]
+                lf22 = gmt.lfp(p1, p1+tvec)
+                p0 = gmt.lnr_inters(lf21, lf22)
+                # build trail array
+                points = gmt.bezier([p1, p0, p2])(np.linspace(0,1,nn+1)[1:])
+                # save
+                self.points = np.vstack((self.points, points))
+                self.spacing = self.spacing + spacings
 
 
     def simple_controlvol_gen(self, outer_shells: list, xd: float, h: float, bs: float):
