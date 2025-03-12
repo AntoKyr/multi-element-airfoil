@@ -88,6 +88,21 @@ def lfp(p1, p2):
     return np.array([(y2 - y1) / (x2 - x1), (y1 * x2 - y2 * x1) / (x2 - x1)])
 
 
+def inpolyg(p: Union[list,tuple,np.ndarray], polyg: Union[list,tuple,np.ndarray]) -> bool:
+    """
+    Check if a point resides inside a polygon.
+    
+    Args:
+        p: [x, y] coordinates of point
+        polyg: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the polygons vertexes
+    
+    Return:
+        True if its inside
+
+    """
+    return Path(polyg).contains_point(p)
+
+
 # BASIC MANIPULATION
 def translate(p: Union[list,tuple,np.ndarray], tv: Union[list,tuple,np.ndarray]) -> np.ndarray:
     """
@@ -255,6 +270,22 @@ def cbs_interp(c: Union[list,tuple,np.ndarray], val: Union[float,list,tuple,np.n
     return np.array(spline.evaluate_list(params))
 
 
+def fitctrlpts(c: Union[list,tuple,np.ndarray], centripetal: bool = True) -> np.ndarray:
+    """
+    Fit a cubic bspline to points and return the control points of it.
+    
+    Args:
+        c: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates
+        centripetal: if True, centripetal algorithm is used
+
+    Returns:
+        Control points
+
+    """
+    spline = fitting.interpolate_curve(list(c), 3, centripetal=centripetal)
+    return np.array(spline.ctrlpts)
+
+
 # ANGLES
 def vectorangle(v1: Union[list,tuple,np.ndarray], v2: Union[list,tuple,np.ndarray] = [1,0], reflex: bool = False) -> float:
     """
@@ -411,24 +442,6 @@ def vertical_vct(v: Union[list,tuple,np.ndarray], side: bool = False) -> np.ndar
     return vv/np.linalg.norm(vv)
 
 
-def project(p: Union[list,tuple,np.ndarray], lf: Union[list,tuple,np.ndarray]) -> np.ndarray:
-    """
-    Project a point onto a line.
-
-    Args:
-        p: [x, y] coordinates of point
-        lf: Line factors as given by np.polyfit()
-
-    Returns:
-        [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the projected point coordinates
-
-    """
-    lfv = np.zeros(2)
-    lfv[0] = -1/lf[0]
-    lfv[1] = p[1] - lfv[0]*p[0]
-    return lnr_inters(lf, lfv)
-
-
 # INTERSECTION
 def lnr_inters(lf1: Union[list,tuple,np.ndarray], lf2: Union[list,tuple,np.ndarray]) -> np.ndarray:
     """
@@ -556,6 +569,24 @@ def raytrace(c: Union[list,tuple,np.ndarray], ray: Union[list,tuple,np.ndarray])
         return [i, points]
     else:
         return [[],[]]
+
+
+def project(p: Union[list,tuple,np.ndarray], lf: Union[list,tuple,np.ndarray]) -> np.ndarray:
+    """
+    Project a point onto a line.
+
+    Args:
+        p: [x, y] coordinates of point
+        lf: Line factors as given by np.polyfit()
+
+    Returns:
+        [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the projected point coordinates
+
+    """
+    lfv = np.zeros(2)
+    lfv[0] = -1/lf[0]
+    lfv[1] = p[1] - lfv[0]*p[0]
+    return lnr_inters(lf, lfv)
 
 
 # CIRCLES
@@ -858,6 +889,7 @@ def crcl_tang_2crv(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.nda
         return [False, None, None, None, None, None]
 
 
+# CURVE BUILDING
 def arc_gen(p1: Union[list,tuple,np.ndarray], p2: Union[list,tuple,np.ndarray], p0: Union[list,tuple,np.ndarray], n: int, reflex: bool = False) -> np.ndarray:
     """
     Generate points of an arc, from point 1 to point 2 with point 0 as center. Generated points include point 1 and 2.
@@ -883,7 +915,6 @@ def arc_gen(p1: Union[list,tuple,np.ndarray], p2: Union[list,tuple,np.ndarray], 
     return np.vstack((p1, np.transpose([x, y]), p2))
 
 
-# CURVE BUILDING
 def bezier(p: Union[list,tuple,np.ndarray], w: Union[list,tuple,np.ndarray] = 1) -> Callable[[float], np.ndarray]:
     """
     Return the function of a rational bezier curve with control points p and weights w.
@@ -1747,7 +1778,7 @@ def crv_fillet(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray
 
             rlims = crcl_tang_segrlim(c1[i:i+2], c2[j:j+2])
 
-            if rlims == []:
+            if len(rlims) == 0:
                 if jsuccess:
                     jfails += 1
                     if jfails > jfailim:
@@ -1813,21 +1844,6 @@ def crv_fillet(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray
     crcl_data = [p0, ptan1, ptan2, i, j]
 
     return [r, c, crcl_data]
-
-
-def inpolyg(p: Union[list,tuple,np.ndarray], polyg: Union[list,tuple,np.ndarray]) -> bool:
-    """
-    Check if a point resides inside a polygon.
-    
-    Args:
-        p: [x, y] coordinates of point
-        polyg: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the polygons vertexes
-    
-    Return:
-        True if its inside
-
-    """
-    return Path(polyg).contains_point(p)
 
 
 # GEOSHAPE CLASS
@@ -2429,6 +2445,30 @@ class GeoShape:
             if refbool:
                 reflist.append(sqi)
         return reflist
+
+
+    def isinshape(self, p: Union[list, tuple], spi: int) -> list:
+        """
+        Check if given points are inside shape.
+        
+        Args:
+            p: [[x0, y0, ... [xn, yn]] coordinates to check
+            spl: index of shape
+
+        Returns:
+            list of bools, True if point inside shape
+
+        """
+        ppi = []
+        # generate shape polygon
+        for sqi in self.shapes[spi]:
+            ppi = ppi + self.squencs[sqi]
+        polyg = self.points[ppi]
+        # check if points inside
+        bl = []
+        for i in range(len(p)):
+            bl.append(inpolyg(p[i], polyg))
+        return bl
 
 
 def gs_merge(gsl: list) -> GeoShape:

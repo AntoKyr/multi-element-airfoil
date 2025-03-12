@@ -8,14 +8,15 @@ import numpy as np
 import geometrics as gmt
 from typing import Union, Callable
 
-def median(c: Union[list,tuple,np.ndarray], theta: float, weight_fun: Callable[[np.ndarray], np.ndarray], n: int, closed_brackets: bool = True) -> np.ndarray:
+
+def weav(c: Union[list,tuple,np.ndarray], theta: float, weight_fun: Callable[[np.ndarray], np.ndarray], n: int, closed_brackets: bool = True) -> np.ndarray:
     """
-    Generate a curve by calculating the median y coordinate between the curve and a line, applying a weight function.
+    Generate a curve by calculating the weighted average y coordinate between the curve and a line, applying a weight function.
 
     Args:
         c: [[x0, y0], [x1, y1], ... , [xn, yn]] the matrix containing all the point coordinates of the curve
-        theta: the angle at which to rotate the curve before calculating the median
-        weight_fun: the function from which the weights of the median calculation are taken
+        theta: the angle at which to rotate the curve before calculating the weighted average
+        weight_fun: the function from which the weights of the weighted average calculation are taken
         n: the number of points the generated curve will have
         closed_brackets: If True, after rotation, all curve points with x values exceeding the segment created by the first and last point of the curve, are removed
     
@@ -31,7 +32,7 @@ def median(c: Union[list,tuple,np.ndarray], theta: float, weight_fun: Callable[[
     else:
         crange = [min(c[:,0]), max(c[:,0])]
 
-    lf = gmt.lfp(c[0], c[-1])                                           # Calculate line factors
+    lf = gmt.lfp(c[0], c[-1])                                                                          # Calculate line factors
     x = c[:,0]
     ly = np.polyval(lf, x)                                                                             # Place line points
     wx = 2 * (x - (crange[1] + crange[0])/2) / abs(crange[1] - crange[0])                              # Map x values to the range [-1,1]
@@ -122,7 +123,6 @@ def marriage(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray],
     # Flip if needed
     if np.linalg.norm(c1[-1] - c2[0]) > np.linalg.norm(c1[0] - c2[0]):
         c2 = np.flipud(c2)
-
     # Generate factor frame and factor curve
     factorframe = [[x1,1], [x0,1], [x0,0], [x2,0]]
     factorcurve = gmt.bezier(factorframe, w)(np.linspace(0,1, n+2))
@@ -134,4 +134,5 @@ def marriage(c1: Union[list,tuple,np.ndarray], c2: Union[list,tuple,np.ndarray],
     c2p = mcp[int(len(mcp)/2):]
     c1p = c1p[argunsort1]
     c2p = c2p[argunsort2]
-    return np.transpose([factorcurve[:,0], c1p[:,1] * factorcurve[:,1] + (1 - factorcurve[:,1]) * c2p[:,1]])
+    mc = np.transpose([factorcurve[:,0], c1p[:,1] * factorcurve[:,1] + (1 - factorcurve[:,1]) * c2p[:,1]])
+    return mc

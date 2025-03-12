@@ -99,7 +99,7 @@ def _act_fore_flap(afl: flg.Airfoil, divx, cs, dtheta, gap):
     if crv_type == 1:
         nf = _nonerand(None, 'beta33', [0.6, 1.1]) * (t/10)**0.25
         cgenarg = fnb.gen_linterp([0.52*nf, 0.54*nf, 0.56*nf])
-        cgenfunc = 'median'
+        cgenfunc = 'weav'
     elif crv_type == 2:
         nf = _nonerand(None, 'int', [7, 11])
         cgenarg = [nf, int(csp * nf/12)]
@@ -211,7 +211,7 @@ def fixed_slot(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, ga
     Args:
         afl (Airfoil): airfoil
         cs (float): the chord of the slat
-        crv_type (int): 1 - 3 median, bezier, arc
+        crv_type (int): 1 - 3 weav, bezier, arc
         gap (float): the suction side gap of the slot
         width (float): the pressure side width of the slot
         r (float): the radius of the curvature of the slat 
@@ -242,7 +242,7 @@ def fixed_slot(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, ga
         nf = _nonerand(None, 'beta33', [0.6, 0.8])
         cgenarg1 = fnb.gen_linterp([0.34*nf, 0.56*nf, 0.58*nf])
         cgenarg2 = fnb.gen_linterp([0.32*nf, 0.54*nf, 0.56*nf])
-        cgenfunc1, cgenfunc2 = 'median', 'median'
+        cgenfunc1, cgenfunc2 = 'weav', 'weav'
     elif crv_type == 2:
         nf = _nonerand(None, 'int', [5, 11])
         cgenarg1 = [nf, int(nf/1.4)]
@@ -266,7 +266,7 @@ def fixed_slat(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, d 
     Args:
         afl (Airfoil): airfoil
         cs (float): the chord of the slat
-        crv_type (int): 1 - 3 median, bezier, arc
+        crv_type (int): 1 - 3 weav, bezier, arc
         d (float): the x distance of the slat from the leading edge
         h (float): the y distance of the slat from the leading edge
         dtheta (float): the angle of rotation of the slat
@@ -280,7 +280,7 @@ def fixed_slat(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, d 
         nf = _nonerand(None, 'beta11', [0.3, 1.3])
         rs = nf * ((t/10)**0.5 + (cl/10)**0.5)
         cgenarg = fnb.gen_linterp([0.52*nf, 0.54*nf, 0.56*nf])
-        cgenfunc = 'median'
+        cgenfunc = 'weav'
     elif crv_type == 2:
         nf = _nonerand(None, 'int', [5, 11])
         rs = (t/10)**0.5 + (cl/10)**0.5
@@ -317,7 +317,7 @@ def act_slat(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, gap 
     Args:
         afl (Airfoil): airfoil
         cs (float): the chord of the slat
-        crv_type (int): 1 - 3, median, bezier, arc
+        crv_type (int): 1 - 3, weav, bezier, arc
         gap (float): the distance of the slat from the leading edge
         actheta (float): the angle of actuation
         dtheta (flaot): the angle of rotation of the slat
@@ -334,7 +334,7 @@ def act_slat(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, gap 
     if crv_type == 1:
         nf = _nonerand(None, 'beta33', [0.8, 1.2])
         cgenarg = fnb.gen_linterp([0.52*nf, 0.54*nf, 0.56*nf])
-        cgenfunc = 'median'
+        cgenfunc = 'weav'
         thetaf = 0.96
     elif crv_type == 2:
         nf = _nonerand(None, 'int', [5, 11])
@@ -373,7 +373,7 @@ def max_slot(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, gap 
     Args:
         afl (Airfoil): airfoil
         cs (float): the chord of the slat
-        crv_type (int): 1 - 3, median, bezier, arc
+        crv_type (int): 1 - 3, weav, bezier, arc
         gap (float): the distance of the slat from the leading edge suction side
         width (float): the distance of the slat from the leading edge pressure side
 
@@ -394,7 +394,7 @@ def max_slot(afl: flg.Airfoil, divx = [60, 45], cs = None, crv_type = None, gap 
         nf = _nonerand(None, 'beta33', [0.6, 0.8])
         cgenarg1 = fnb.gen_linterp([0.34*nf, 0.64*nf, 0.58*nf])
         cgenarg2 = fnb.gen_linterp([0.32*nf, 0.54*nf, 0.56*nf])
-        cgenfunc1, cgenfunc2 = 'median', 'median'
+        cgenfunc1, cgenfunc2 = 'weav', 'weav'
         r = 0.55 * csp1
     elif crv_type == 2:
         nf = _nonerand(None, 'int', [5, 11])
@@ -493,7 +493,7 @@ def junk_flap(afl: flg.Airfoil, divx = [60, 45], cf = None, crv_type = None, d =
     Args:
         afl (Airfoil): airfoil
         cf (float): the chord of the flap
-        crv_type (int): 1 - 4 median, bezier, arc, mirror
+        crv_type (int): 1 - 4 weav, bezier, arc, mirror
         d (float): the x distance of the flap from the trailing edge
         h (float): the y distance of the flap from the trailing edge
         dtheta (float): the angle of rotation of the flap
@@ -507,7 +507,7 @@ def junk_flap(afl: flg.Airfoil, divx = [60, 45], cf = None, crv_type = None, d =
         nf = _nonerand(None, 'beta11', [0.3, 1.3])
         rs = nf * ((t/10)**0.5 + (cl/10)**0.5)
         cgenarg = fnb.gen_linterp([0.52*nf, 0.54*nf, 0.56*nf])
-        cgenfunc = 'median'
+        cgenfunc = 'weav'
     elif crv_type == 2:
         nf = _nonerand(None, 'int', [5, 11])
         df = _nonerand(None, 'beta33', [0.1, 1.4])
@@ -749,7 +749,7 @@ def fowler_1slot(afl: flg.Airfoil, divx = [60, 45], cf = None, crv_type = None, 
     Args:
         afl (Airfoil): airfoil
         cf (float): the chord of the flap
-        crv_type (int): 1 - 3 median, bezier, arc
+        crv_type (int): 1 - 3 marriage, bezier, arc
         d (float): the x distance of the flap from the trailing edge
         h (float): the y distance of the flap from the trailing edge
         dtheta (float): the angle of rotation of the flap

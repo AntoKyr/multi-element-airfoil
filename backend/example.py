@@ -18,8 +18,8 @@ name = namearr[1][1]
 afl = afld[name]
 
 # select le and te devices
-le_func = rsg.bare_le
-te_func = rsg.fowler_1slot
+le_func = rsg.act_slat
+te_func = rsg.flap_2slot_ff
 
 # generate le and te geometries, and merge them into a single airfoil geometry
 aflcrv = flg.foilpatch(le_func(afl), te_func(afl))
@@ -34,14 +34,14 @@ gs = gmt.gs_merge(gsl)
 gs = dm.element_sort(gs)
 
 # prepare section for meshing
-gs = dm.simple_section_prep(gs, 10, 0.95, 0.5)
-# generate boundary layers
-outers = gs.simple_boundary_layer_gen(1, 50)
+gs = dm.simple_section_prep(gs, 10, 0.95, 0.5)                   # always use as 1st
 # generate higher density regions
-gs.simple_trailpoint_gen(50, 70, 1500, 0.1, 20, 80, 5)
+gs.simple_trailpoint_gen(50, 70, 1500, 1.5, 0.05, 20, 80, 4)       # always use as 2nd
 gs.simple_prox_layer(20, 0.5)
+# generate boundary layers
+outers = gs.simple_boundary_layer_gen(0.7, 50, blcoef=1.1)
 # generate control volume
-gs.simple_controlvol_gen(outers, 1500, 500, 60)
+gs.simple_controlvol_gen(outers, 1500, 500, 60)                  # always use after boundary layer gen (obviously)
 
 # print the domain data and plot it locally
 print(gs)

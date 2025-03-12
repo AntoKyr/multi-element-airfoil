@@ -11,7 +11,7 @@ from typing import Union, Callable
 
 # Some documentation for you
 # cgenarg depending on cgenfunc
-# - median: the wieght function weight_fun
+# - weav: the weight function weight_fun
 # - bezier: [m, n] with m the number of control points (can also be the string 'all') and n the loops of the curve gen algorithm
 # - arc_p: the dx for the equation xp = css + dx, the point needed will be found by interpolating the suction side at xp
 # - arc_tang: the cgenarg will not be used
@@ -207,7 +207,7 @@ def le_slot(sides: list, divx: list, css: float, csp: float, cgenfunc: str, cgen
         sides: the suction and pressure side as returned by Airfoil.sides()
         css (float): 0 < css < 50, the suction side flap chord
         csp (float): 0 < csp < 50, the pressure side flap chord
-        cgenfunc (str): string corelating to the curve generation fucntion that will be used. can be one of: {'median', 'bezier', 'arc_p', 'arc_tang', 'input'}
+        cgenfunc (str): string corelating to the curve generation fucntion that will be used. can be one of: {'weav', 'bezier', 'arc_p', 'arc_tang', 'input'}
         cgenarg: The arguments needed for the function (described at the top of the module)
         r (float): the radius of the fillet of the leading edge curve and the pressure side curve, must be above 0, if 0 the curves will be returned as separate
         
@@ -225,9 +225,9 @@ def le_slot(sides: list, divx: list, css: float, csp: float, cgenfunc: str, cgen
     pre_curve = np.vstack((pp, gmt.crv_ln_cut(gmt.crv_ln_cut(sides[1], csp, '>'), _division_line(sides, divx), '>=')))
     le_curve = np.vstack((sp, gmt.crv_ln_cut(sides[0], css, '<'), gmt.crv_ln_cut(sides[1], csp, '<'), pp))
     # Generate curves
-    if cgenfunc == 'median':
+    if cgenfunc == 'weav':
         theta = - gmt.vectorangle(le_curve[0]-le_curve[1]) - np.pi/2 + 0.015
-        le_curve = crvgen.median(le_curve, theta, cgenarg, n)
+        le_curve = crvgen.weav(le_curve, theta, cgenarg, n)
     
     elif cgenfunc == 'bezier':
         le_curve = crvgen.bezier(le_curve, *cgenarg, n)
@@ -319,7 +319,7 @@ def split_flap(sides: list, divx: list, cf: float, dtheta: float, ft: float) -> 
 
     """
     cf = 100 - cf
-    # Generate median line
+    # Generate weav line
     interpoints = gmt.cbs_interp(np.vstack(sides), np.linspace(30,100,71), np.zeros(71, dtype=int), [10**-3, 10**-3])
     med_curve = ft * np.flipud(interpoints[0:70]) + (1-ft) * interpoints[70:]
     # Surface split points
@@ -357,7 +357,7 @@ def zap_flap(sides: list, divx: list, cf: float, dtheta: float, ft: float, dx: f
 
     """
     cf = 100 - cf
-    # Generate median line
+    # Generate weav line
     interpoints = gmt.cbs_interp(np.vstack(sides), np.linspace(30,100,71), np.zeros(71, dtype=int), [10**-3, 10**-3])
     med_curve = ft * np.flipud(interpoints[0:70]) + (1-ft) * interpoints[70:]
     # Surface split point
@@ -406,7 +406,7 @@ def te_slot(sides: list, divx: list, cfs: float, cfp: float, cgenfunc: str, cgen
         sides: the suction and pressure side as returned by Airfoil.sides()
         cfs (float): 0 < cfs < 50, the suction side flap chord
         cfp (float): 0 < cfp < 50, the pressure side flap chord
-        cgenfunc (str): string corelating to the curve generation fucntion that will be used. can be one of: {'median', 'bezier', 'arc_p', 'arc_tang', 'input'}
+        cgenfunc (str): string corelating to the curve generation fucntion that will be used. can be one of: {'marriage', 'arc_p', 'arc_tang', 'input'}
         cgenarg: The arguments needed for the function (described at the top of the module)
         r (float): the radius of the fillet of the leading edge curve and the pressure side curve, must be above 0, if 0 the curves will be returned as separate
         
@@ -461,7 +461,7 @@ def slat(sides: list, css: float, csp: float, cgenfunc: str, cgenarg: Union[Call
         sides: the suction and pressure side as returned by Airfoil.sides()
         css (float): 0 < css < 50, the suction side flap chord
         csp (float): 0 < csp < 50, the pressure side flap chord
-        cgenfunc (str): string corelating to the curve generation fucntion that will be used. can be one of: {'median', 'bezier', 'arc_p', 'arc_tang', 'input'}
+        cgenfunc (str): string corelating to the curve generation fucntion that will be used. can be one of: {'weav', 'bezier', 'arc_p', 'arc_tang', 'input'}
         cgenarg: The arguments needed for the function (described at the top of the module)
         r (float): the radius of the fillet of the suction side curve and the pressure side curve, must be above 0, if 0 the curves will be returned as separate
         mirror (bool): if True, the generated curve will be mirrored
@@ -478,9 +478,9 @@ def slat(sides: list, css: float, csp: float, cgenfunc: str, cgenarg: Union[Call
     # Surfaces
     suc_curve = np.vstack((sp, gmt.crv_ln_cut(sides[0], css, '<'), gmt.crv_ln_cut(sides[1], csp, '<'), pp))
     # Generate curve
-    if cgenfunc == 'median':
+    if cgenfunc == 'weav':
         theta = - gmt.vectorangle(suc_curve[0]-suc_curve[1]) - np.pi/2 + 0.015
-        pre_curve = crvgen.median(suc_curve, theta, cgenarg, n)
+        pre_curve = crvgen.weav(suc_curve, theta, cgenarg, n)
 
     elif cgenfunc == 'bezier':
         pre_curve = crvgen.bezier(suc_curve, *cgenarg, n)
@@ -516,7 +516,7 @@ def flap(sides: list, cfs: float, cfp: float, cgenfunc: str, cgenarg: Union[Call
         sides: the suction and pressure side as returned by Airfoil.sides()
         cfs (float): 0 < cfs < 50, the suction side flap chord
         cfp (float): 0 < cfp < 50, the pressure side flap chord
-        cgenfunc (str): string corelating to the curve generation fucntion that will be used. can be one of: {'median', 'bezier', 'arc_p', 'arc_tang', 'input'}
+        cgenfunc (str): string corelating to the curve generation fucntion that will be used. can be one of: {'marriage', 'arc_p', 'arc_tang', 'input'}
         cgenarg: The arguments needed for the function (described at the top of the module)
         r (float): the radius of the fillet of the leading edge curve and the pressure side curve, must be above 0, if 0 the curves will be returned as separate
         tmorphl (list): list containing the variables that are used in morphing the top side of the curve (described at the top of the module)

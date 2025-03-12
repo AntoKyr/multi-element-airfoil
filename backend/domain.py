@@ -501,28 +501,39 @@ class MeshDomain(gmt.GeoShape):
         return outer_shell
 
 
-    def simple_trailpoint_gen(self, hfl: float, hft: float, xd: float, ss: float, es: float, nn: int, sppo: float):
+    def simple_trailpoint_gen(self, hfl: float, hft: float, xd: float, mind: float, ss: float, es: float, nn: int, sppo: float):
         """
-        Generate trail points and spacings.
+        Generate trail points and spacings. This is meant to be used first and foremost.
 
         Args:
             md: MeshDomain
             hfl: leading edge trail height factor
             hft: trailing edge trail height factor
             xd: x distance
+            mind: minimum distance from elements
             ss: min spacing at the start of the trail
             es: max spacing at the end of the trail
             nn: number of points
             sppo: spacing power, influences the spacing distribution of the trail points
 
         """
+        dhc = 1.2
+
         # get all shapes with positive void coeffiecient
         pvci = np.nonzero(np.array(self.mesh_types) == 'void')[0]
-        vdshapes = []
-        for i in pvci:
-            vdshapes.append(self.shapes[i])
+        
+        # get all points of void shapes, a surprise tool that will help us later
+        vp = np.array([], dtype=float).reshape(0,2)
+        for shi in pvci:
+            shape = self.shapes[shi]
+            vpi = []
+            for sqi in shape:
+                vpi = vpi + self.squencs[sqi]
+            vp = np.vstack((vp,self.points[vpi]))
 
-        for shape in vdshapes:
+        prevh = 10**6 * max(hfl, hft)
+        for shi in pvci:
+            shape = self.shapes[shi]
             # Get trail vectors and points
             tpi0 = self.squencs[shape[0]][0]
             tpi1 = self.squencs[shape[0]][1]
@@ -531,41 +542,99 @@ class MeshDomain(gmt.GeoShape):
             v2 = self.points[tpi2] - self.points[tpi0]
             tvec = - gmt.bisector_vct(v1, v2)
             p1 = self.points[tpi0]
+
+            # trailing edge calc
             # get trail height
-            th1 = fnb.gen_polysin_trail_height(hft)(gmt.vectorangle(tvec))
+            th = fnb.gen_polysin_trail_height(hft)(gmt.vectorangle(tvec))
             # get all points
-            p2 = [xd, th1 + p1[1]]
-            lf11 = [0, th1 + p1[1]]
+            p2 = [xd, th + p1[1]]
+            lf11 = [0, th + p1[1]]
             lf12 = gmt.lfp(p1, p1+tvec)
             p0 = gmt.lnr_inters(lf11, lf12)
             # build trail array
             points = gmt.bezier([p1, p0, p2])(np.linspace(0,1,nn+1)[1:])
             # calculate spacing
-            spacings = list(np.linspace(ss**(1/sppo), es**(1/sppo), nn)**sppo)
-            # save
-            self.points = np.vstack((self.points, points))
-            self.spacing = self.spacing + spacings
+            spacings = np.linspace(ss**(1/sppo), es**(1/sppo), nn)**sppo
 
-            if abs(gmt.vectorangle(tvec)) > np.pi/6:
-                # get le
-                tp = self.points[tpi0]
-                pi = []
-                for sqi in shape:
-                    pi += self.squencs[sqi][0:-1]
-                p2i = pi[np.argmax(np.hypot(self.points[pi,0] - tp[0], self.points[pi,1] - tp[1]))]
-                p1 = self.points[p2i]
-                # get trail height
-                th2 = fnb.gen_polysin_trail_height(hfl)(gmt.vectorangle(tvec))
-                # get all points
-                p2 = [xd, th2 + p1[1]]
-                lf21 = [0, th2 + p1[1]]
-                lf22 = gmt.lfp(p1, p1+tvec)
-                p0 = gmt.lnr_inters(lf21, lf22)
-                # build trail array
-                points = gmt.bezier([p1, p0, p2])(np.linspace(0,1,nn+1)[1:])
+            # check if too close to existing trail
+            if abs(prevh-th) >= es * dhc:
+                prevh = th
+
+                # clean up unwanted points
+                # clear points in own shape
+                dkb = self.isinshape(points, shi)
+                if np.any(dkb):
+                    keepi = np.nonzero(np.logical_not(dkb))[0]
+                    points = points[keepi]
+                    spacings = spacings[keepi]
+
+                # check if points in other shapes
+                for i in range(len(self.shapes)):
+                    dkb = self.isinshape(points, i)
+                    if np.any(dkb):
+                        keepi = np.s_[0:min(np.nonzero(dkb)[0])]
+                        points = points[keepi]
+                        spacings = spacings[keepi]
+
+                # check if points too close to void shapes
+                dists = np.min(gmt.crv_dist(points, vp), axis=1)
+                keepi = np.nonzero(dists > mind)[0]
+                points = points[keepi]
+                spacings = spacings[keepi]
+
                 # save
                 self.points = np.vstack((self.points, points))
-                self.spacing = self.spacing + spacings
+                self.spacing = self.spacing + list(spacings)
+
+            # leading edge calc
+            # get le
+            tp = self.points[tpi0]
+            pi = []
+            for sqi in shape:
+                pi += self.squencs[sqi][0:-1]
+            p2i = pi[np.argmax(np.hypot(self.points[pi,0] - tp[0], self.points[pi,1] - tp[1]))]
+            p1 = self.points[p2i]
+            # get trail height
+            th = fnb.gen_polysin_trail_height(hfl)(gmt.vectorangle(tvec))
+            # get all points
+            p2 = [xd, th + p1[1]]
+            lf21 = [0, th + p1[1]]
+            lf22 = gmt.lfp(p1, p1+tvec)
+            p0 = gmt.lnr_inters(lf21, lf22)
+            # build trail array
+            points = gmt.bezier([p1, p0, p2])(np.linspace(0,1,nn+1)[1:])
+            # calculate spacing
+            spacings = np.linspace(ss**(1/sppo), es**(1/sppo), nn)**sppo
+
+            # check if too close to existing trail
+            if abs(prevh-th) >= es * dhc:
+                prevh = th
+
+                # clean up unwanted points
+                # clear points in own shape
+                dkb = self.isinshape(points, shi)
+                if np.any(dkb):
+                    keepi = np.nonzero(np.logical_not(dkb))[0]
+                    points = points[keepi]
+                    spacings = spacings[keepi]
+
+                # check if points in other shapes
+                for i in range(len(self.shapes)):
+                    dkb = self.isinshape(points, i)
+                    if np.any(dkb):
+                        keepi = np.s_[0:min(np.nonzero(dkb)[0])]
+                        points = points[keepi]
+                        spacings = spacings[keepi]
+
+                # check if points too close to void shapes
+                dists = np.min(gmt.crv_dist(points, vp), axis=1)
+                keepi = np.nonzero(dists > mind)[0]
+                points = points[keepi]
+                spacings = spacings[keepi]
+
+                # save
+                self.points = np.vstack((self.points, points))
+                self.spacing = self.spacing + list(spacings)
 
 
     def simple_controlvol_gen(self, outer_shells: list, xd: float, h: float, bs: float):
@@ -607,7 +676,7 @@ class MeshDomain(gmt.GeoShape):
 
     def simple_prox_layer(self, proxd: float, sp: float):
         """
-        Generate proximity layer points and spacings.
+        Generate proximity layer points and spacings. Meant to be used after trail point gen.
 
         Args:
             proxd: the distance of the proximity layer
@@ -615,6 +684,7 @@ class MeshDomain(gmt.GeoShape):
         
         """
         clf = 0.95
+        divc = 0.6
         vdshapes = np.nonzero(np.array(self.mesh_types)=='void')[0]
         proxp = np.array([], dtype=float).reshape(0,2)
         shapp = np.array([], dtype=float).reshape(0,2)
@@ -632,6 +702,13 @@ class MeshDomain(gmt.GeoShape):
         mindists = np.min(dists, axis=1)
         vali = np.nonzero(mindists >= clf * proxd)[0]
         proxp = proxp[vali]
+
+        # remove all points closer to any other points than they should be
+        dists = gmt.crv_dist(proxp, self.points)
+        mindists = np.min(dists, axis=1)
+        vali = np.nonzero(mindists >= divc * clf * proxd)[0]
+        proxp = proxp[vali]
+
         # add points and spacings
         spac = list(np.full(len(proxp), sp))
         self.points = np.vstack((self.points, proxp))
